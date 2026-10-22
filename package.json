@@ -5,8 +5,10 @@
     "ng": "ng",
     "tokens:generate": "node tools/generate-tokens.mjs",
     "tokens:check": "node tools/generate-tokens.mjs --check && node --test tools/tokens.test.mjs",
-    "start": "npm run tokens:generate && ng serve catalogue --host 127.0.0.1",
-    "build": "npm run tokens:generate && ng build indice-tokens && ng build indice-ui && ng build catalogue",
+    "packages:build": "npm run tokens:generate && ng build indice-tokens && ng build indice-ui && node tools/package-library.mjs",
+    "delivery:check": "node tools/verify-usage.mjs",
+    "start": "npm run packages:build && ng serve catalogue --host 127.0.0.1",
+    "build": "npm run packages:build && ng build catalogue",
     "watch": "ng build --watch --configuration development",
     "test": "npm run tokens:check && ng test indice-ui --watch=false && ng test catalogue --watch=false"
   },

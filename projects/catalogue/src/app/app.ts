@@ -3,9 +3,11 @@ import { TOKENS, DesignToken } from 'indice-tokens';
 import { Icon } from './icon';
 import { ButtonCatalogue } from './buttons';
 import { IconButtonCatalogue } from './icon-buttons';
+import { SocialButtonCatalogue } from './social-buttons';
+import { FieldCatalogue } from './fields';
 
 @Component({
-  imports: [Icon, ButtonCatalogue, IconButtonCatalogue],
+  imports: [Icon, ButtonCatalogue, IconButtonCatalogue, SocialButtonCatalogue, FieldCatalogue],
   selector: 'app-root',
   styleUrl: './app.css',
   templateUrl: './app.html',
@@ -26,8 +28,8 @@ export class App {
   readonly menuOpen = signal(false);
   readonly notice = signal('');
   private noticeTimer?: ReturnType<typeof setTimeout>;
-  readonly isComponent = computed(() => this.category() === 'buttons' || this.category() === 'icon-buttons');
-  readonly title = computed(() => this.category() === 'buttons' ? 'Buttons' : this.category() === 'icon-buttons' ? 'Icon Buttons' : this.query().trim() ? 'Search results' : this.categories.find(item => item.id === this.category())!.title);
+  readonly isComponent = computed(() => ['buttons', 'icon-buttons', 'social-buttons', 'fields'].includes(this.category()));
+  readonly title = computed(() => this.category() === 'buttons' ? 'Buttons' : this.category() === 'icon-buttons' ? 'Icon Buttons' : this.category() === 'social-buttons' ? 'Social Media Buttons' : this.category() === 'fields' ? 'Input Field' : this.query().trim() ? 'Search results' : this.categories.find(item => item.id === this.category())!.title);
   readonly visible = computed(() => {
     const query = this.query().trim().toLowerCase();
     return TOKENS.filter(token => query

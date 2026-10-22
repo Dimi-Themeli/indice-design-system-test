@@ -1,0 +1,34 @@
+<div class="component-toolbar">
+  <div class="view-tabs" role="tablist" aria-label="Social button views" (keydown)="onTabKey($event)">
+    <button type="button" role="tab" id="social-states-tab" aria-controls="social-states-panel" [attr.aria-selected]="view() === 'states'" [attr.tabindex]="view() === 'states' ? 0 : -1" [class.selected]="view() === 'states'" (click)="view.set('states')">States</button>
+    <button type="button" role="tab" id="social-playground-tab" aria-controls="social-playground-panel" [attr.aria-selected]="view() === 'playground'" [attr.tabindex]="view() === 'playground' ? 0 : -1" [class.selected]="view() === 'playground'" (click)="view.set('playground')">Playground</button>
+  </div>
+  <div class="toolbar-actions"><a href="https://www.figma.com/design/9kubN4VqWMZ6nLyb1RMhWM/INDICE-IAM-%7C-Design-System?node-id=2284-102" target="_blank" rel="noopener noreferrer" title="Open social button design in Figma">Figma <app-icon name="layers" /></a><app-use-it component="social-button" [markup]="code()" /></div>
+</div>
+@if (view() === 'states') {
+  <section id="social-states-panel" role="tabpanel" aria-labelledby="social-states-tab">
+    <label class="variant-search"><app-icon name="search" /><input type="search" aria-label="Search social providers" placeholder="Search social providers..." [value]="query()" (input)="query.set($any($event.target).value)" /></label>
+    <div class="social-grid">
+      @for (provider of matches(); track provider.id) {
+        <section class="variant-section" [attr.aria-label]="provider.name">
+          <h2>{{ provider.name }}</h2>
+          @for (state of states; track state) {
+            <div class="specimen social-specimen"><span class="state-label">{{ state }}</span><button indiceSocialButton [provider]="provider.id" [attr.data-preview-state]="state"></button></div>
+          }
+        </section>
+      } @empty { <div class="empty"><h2>No matching providers</h2><button type="button" (click)="query.set('')">Clear search</button></div> }
+    </div>
+  </section>
+} @else {
+  <section id="social-playground-panel" role="tabpanel" aria-labelledby="social-playground-tab">
+    <div class="playground-controls">
+      <label>Provider<select aria-label="Social provider" [value]="provider()" (change)="setProvider($any($event.target).value)">@for (item of providers; track item.id) { <option [value]="item.id">{{ item.name }}</option> }</select></label>
+      <div class="toggle-controls"><label><input type="checkbox" [checked]="disabled()" (change)="disabled.set($any($event.target).checked)" />Disabled</label></div>
+    </div>
+    <div class="live-preview"><button indiceSocialButton [provider]="provider()" [disabled]="disabled()" (click)="activations.set(activations() + 1)"></button></div>
+    <div class="preview-meta"><span role="status">{{ activations() }} activations</span><span>Segoe UI / 15px / 16px</span></div>
+    <div class="code-heading"><h2>Angular</h2><button type="button" title="Copy Angular markup" aria-label="Copy Angular markup" (click)="copyCode()"><app-icon name="copy" /></button></div>
+    <pre><code>{{ code() }}</code></pre><div class="copy-status" role="status">{{ notice() }}</div>
+  </section>
+}
+<dl class="specification"><div><dt>Size</dt><dd>254px / 40px</dd></div><div><dt>Radius</dt><dd>4px</dd></div><div><dt>Gap</dt><dd>10px</dd></div><div><dt>Microsoft logo</dt><dd>21px</dd></div><div><dt>Other logos</dt><dd>20px</dd></div></dl>

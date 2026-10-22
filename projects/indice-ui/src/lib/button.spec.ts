@@ -1,7 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { BUTTON_VARIANTS, IndiceButton } from './button';
 import { ICON_BUTTON_SIZES, ICON_BUTTON_VARIANTS, IconButtonSize, IndiceIconButton } from './icon-button';
+import { IndiceSocialButton, SOCIAL_BUTTON_PROVIDERS, SocialButtonProvider } from './social-button';
 
 @Component({ imports: [IndiceButton], template: '<button indiceButton [disabled]="disabled" [showLeftIcon]="left" [showRightIcon]="right" (click)="clicks = clicks + 1">Button</button>' })
 class TestHost {
@@ -17,6 +18,41 @@ class IconTestHost {
   disabled = false;
   clicks = 0;
 }
+
+@Component({ imports: [IndiceSocialButton], template: '<button indiceSocialButton [provider]="provider()" [disabled]="disabled()" (click)="clicks = clicks + 1"></button>' })
+class SocialTestHost {
+  provider = signal<SocialButtonProvider>('windows');
+  disabled = signal(false);
+  clicks = 0;
+}
+
+describe('IndiceSocialButton', () => {
+  it('renders all four original provider labels with decorative logos', async () => {
+    const fixture = TestBed.createComponent(SocialTestHost);
+    for (const provider of SOCIAL_BUTTON_PROVIDERS) {
+      fixture.componentInstance.provider.set(provider.id);
+      await fixture.whenStable();
+      const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+      expect(button.dataset['provider']).toBe(provider.id);
+      expect(button.textContent).toBe(provider.label);
+      expect(button.querySelector('.social-provider-logo')?.getAttribute('aria-hidden')).toBe('true');
+      expect(button.type).toBe('button');
+    }
+  });
+
+  it('uses native activation and blocks clicks when disabled', async () => {
+    const fixture = TestBed.createComponent(SocialTestHost);
+    await fixture.whenStable();
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    button.click();
+    expect(fixture.componentInstance.clicks).toBe(1);
+    fixture.componentInstance.disabled.set(true);
+    await fixture.whenStable();
+    expect(button.disabled).toBe(true);
+    button.click();
+    expect(fixture.componentInstance.clicks).toBe(1);
+  });
+});
 
 describe('IndiceIconButton', () => {
   it('requires an accessible label and provides a native tooltip and safe button type', async () => {

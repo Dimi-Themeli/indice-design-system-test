@@ -1,10 +1,11 @@
 import { Component, computed, signal } from '@angular/core';
 import { ICON_BUTTON_SIZES, ICON_BUTTON_VARIANTS, IconButtonSize, IconButtonVariant, IndiceIconButton } from 'indice-ui';
 import { Icon } from './icon';
+import { UseIt } from './use-it';
 
 @Component({
   selector: 'app-icon-button-catalogue',
-  imports: [IndiceIconButton, Icon],
+  imports: [IndiceIconButton, Icon, UseIt],
   templateUrl: './icon-buttons.html',
   styleUrls: ['./buttons.css', './icon-buttons.css'],
 })

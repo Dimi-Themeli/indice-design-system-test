@@ -1,0 +1,3 @@
+.social-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 36px 24px; }
+.social-specimen { min-width: 0; }
+.live-preview { padding-inline: 0; }

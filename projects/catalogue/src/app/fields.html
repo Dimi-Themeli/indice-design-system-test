@@ -1,0 +1,46 @@
+<div class="component-toolbar">
+  <div class="view-tabs" role="tablist" aria-label="Field views" (keydown)="onTabKey($event)">
+    <button type="button" role="tab" id="field-states-tab" aria-controls="field-states-panel" [attr.aria-selected]="view() === 'states'" [attr.tabindex]="view() === 'states' ? 0 : -1" [class.selected]="view() === 'states'" (click)="view.set('states')">States</button>
+    <button type="button" role="tab" id="field-playground-tab" aria-controls="field-playground-panel" [attr.aria-selected]="view() === 'playground'" [attr.tabindex]="view() === 'playground' ? 0 : -1" [class.selected]="view() === 'playground'" (click)="view.set('playground')">Playground</button>
+  </div>
+  <div class="toolbar-actions"><a href="https://www.figma.com/design/9kubN4VqWMZ6nLyb1RMhWM/INDICE-IAM-%7C-Design-System?node-id=2029-31" target="_blank" rel="noopener noreferrer" title="Open field design in Figma">Figma <app-icon name="layers" /></a><app-use-it component="field" [markup]="code()" [configuration]="{ required: required(), readOnly: readOnly(), disabled: control.disabled, type: type() }" /></div>
+</div>
+@if (view() === 'states') {
+  <section id="field-states-panel" role="tabpanel" aria-labelledby="field-states-tab">
+    <label class="variant-search"><app-icon name="search" /><input type="search" aria-label="Search field variants" placeholder="Search field variants..." [value]="query()" (input)="query.set($any($event.target).value)" /></label>
+    <div class="field-specimens">
+      @for (example of matches(); track example.id) {
+        <section class="field-example" [attr.aria-label]="example.id">
+          <h2>{{ example.kind }} <span>{{ example.state }} / {{ example.layout }}</span></h2>
+          <indice-field label="Label text" [layout]="example.layout" [value]="example.value" [readOnly]="example.kind === 'view'" [disabled]="example.state === 'disabled'" [invalid]="example.state === 'error'" [error]="example.state === 'error' && example.kind === 'filled' ? 'Lorem ipsum dolor sit amet, consectetur adipiscing elit' : ''" [required]="true" info="Field information" [attr.data-preview-state]="example.state" />
+        </section>
+      } @empty { <div class="empty"><h2>No matching fields</h2><button type="button" (click)="query.set('')">Clear search</button></div> }
+    </div>
+  </section>
+} @else {
+  <section id="field-playground-panel" role="tabpanel" aria-labelledby="field-playground-tab">
+    <div class="playground-controls">
+      <label>Label<input type="text" aria-label="Field label" maxlength="80" [value]="label()" (input)="label.set($any($event.target).value)" /></label>
+      <label>Placeholder<input type="text" aria-label="Field placeholder" maxlength="80" [value]="placeholder()" (input)="placeholder.set($any($event.target).value)" /></label>
+      <label>Type<select aria-label="Field type" [value]="type()" (change)="setType($any($event.target).value)"><option value="text">Text</option><option value="email">Email</option><option value="password">Password</option><option value="tel">Telephone</option><option value="url">URL</option><option value="search">Search</option></select></label>
+      <div class="layout-control"><span>Layout</span><div class="view-tabs" role="group" aria-label="Field layout"><button type="button" [attr.aria-pressed]="layout() === 'vertical'" [class.selected]="layout() === 'vertical'" (click)="setLayout('vertical')">Vertical</button><button type="button" [attr.aria-pressed]="layout() === 'horizontal'" [class.selected]="layout() === 'horizontal'" (click)="setLayout('horizontal')">Horizontal</button></div></div>
+      <div class="toggle-controls">
+        <label><input type="checkbox" [checked]="required()" (change)="setRequired($any($event.target).checked)" />Required</label>
+        <label><input type="checkbox" [checked]="control.disabled" (change)="setDisabled($any($event.target).checked)" />Disabled</label>
+        <label><input type="checkbox" [checked]="readOnly()" (change)="setReadOnly($any($event.target).checked)" />Read-only</label>
+        <label><input type="checkbox" [checked]="showLabel()" (change)="showLabel.set($any($event.target).checked)" />Label</label>
+        <label><input type="checkbox" [checked]="showIcon()" (change)="showIcon.set($any($event.target).checked)" />Eye icon</label>
+        <label><input type="checkbox" [checked]="showInfo()" (change)="showInfo.set($any($event.target).checked)" />Information</label>
+        <label><input type="checkbox" [checked]="showErrorMessage()" (change)="showErrorMessage.set($any($event.target).checked)" />Error message</label>
+      </div>
+    </div>
+    <form (submit)="$event.preventDefault(); validate()" (reset)="$event.preventDefault(); reset()" novalidate>
+      <div class="live-preview"><indice-field [label]="label() || 'Field preview'" [placeholder]="placeholder()" [type]="type()" [layout]="layout()" [formControl]="control" [required]="required()" [readOnly]="readOnly()" [showLabel]="showLabel()" [showIcon]="showIcon()" [info]="showInfo() ? 'Field information' : ''" [error]="error()" [showErrorMessage]="showErrorMessage()" (iconClick)="actionCount.set(actionCount() + 1)" /></div>
+      <div class="form-actions"><button type="submit">Validate</button><button type="reset" class="reset-control" aria-label="Reset field" title="Reset field"><app-icon name="reset" /></button><span role="status">{{ result() }}</span></div>
+    </form>
+    <div class="preview-meta"><span>{{ currentValue().length }} characters</span><span>{{ actionCount() }} icon actions</span></div>
+    <div class="code-heading"><h2>Angular</h2><button type="button" title="Copy Angular markup" aria-label="Copy Angular markup" (click)="copyCode()"><app-icon name="copy" /></button></div>
+    <pre><code>{{ code() }}</code></pre><div class="copy-status" role="status">{{ notice() }}</div>
+  </section>
+}
+<dl class="specification"><div><dt>Width</dt><dd>553px</dd></div><div><dt>Control height</dt><dd>48px</dd></div><div><dt>Radius</dt><dd>8px</dd></div><div><dt>Input</dt><dd>Geologica Light / 16px</dd></div><div><dt>Label / Error</dt><dd>14px / 12px</dd></div></dl>

@@ -4,6 +4,8 @@
 .view-tabs button { border: 0; border-radius: 4px; padding: 9px 14px; background: transparent; color: var(--muted); font-size: 14px; }
 .view-tabs button.selected { background: #e2e9df; color: #263c30; font-weight: 600; }
 .component-toolbar a { display: flex; gap: 8px; align-items: center; color: var(--ink); text-decoration: none; font-size: 14px; }
+.component-toolbar { flex-wrap: wrap; }
+.toolbar-actions { display: flex; align-items: center; gap: 16px; margin-left: auto; }
 .variant-search { display: flex; gap: 10px; align-items: center; color: var(--muted); margin: 24px 0 32px; max-width: 420px; }
 .variant-search input { border: 1px solid var(--line); border-radius: 4px; background: white; color: var(--ink); padding: 10px 12px; width: 100%; min-width: 0; font-size: 14px; }
 .specimen-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 36px 16px; }

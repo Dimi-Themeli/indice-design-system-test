@@ -3,7 +3,7 @@
     <button type="button" role="tab" id="icon-states-tab" aria-controls="icon-states-panel" [attr.aria-selected]="view() === 'states'" [attr.tabindex]="view() === 'states' ? 0 : -1" [class.selected]="view() === 'states'" (click)="view.set('states')">States</button>
     <button type="button" role="tab" id="icon-playground-tab" aria-controls="icon-playground-panel" [attr.aria-selected]="view() === 'playground'" [attr.tabindex]="view() === 'playground' ? 0 : -1" [class.selected]="view() === 'playground'" (click)="view.set('playground')">Playground</button>
   </div>
-  <a href="https://www.figma.com/design/9kubN4VqWMZ6nLyb1RMhWM/INDICE-IAM-%7C-Design-System?node-id=2307-507" target="_blank" rel="noopener noreferrer" title="Open icon button design in Figma">Figma <app-icon name="layers" /></a>
+  <div class="toolbar-actions"><a href="https://www.figma.com/design/9kubN4VqWMZ6nLyb1RMhWM/INDICE-IAM-%7C-Design-System?node-id=2307-507" target="_blank" rel="noopener noreferrer" title="Open icon button design in Figma">Figma <app-icon name="layers" /></a><app-use-it component="icon-button" [markup]="code()" /></div>
 </div>
 @if (view() === 'states') {
   <section id="icon-states-panel" role="tabpanel" aria-labelledby="icon-states-tab">

@@ -1,0 +1,17 @@
+<ng-template #information>
+  <button type="button" class="field-info" [attr.aria-label]="info()" [title]="info()" [disabled]="isDisabled()"><span aria-hidden="true"></span></button>
+</ng-template>
+<div class="field-layout" [class.horizontal]="layout() === 'horizontal'" [class.readonly]="readOnly()" [class.has-info]="!!info()" [class.no-label]="!showLabel()" [class.disabled]="isDisabled()" [class.invalid]="hasError()" [class.has-error-message]="errorVisible()">
+  @if (showLabel()) {
+    <div class="field-title"><label [for]="inputId()">{{ label() }}@if (required() && !readOnly()) { <span class="field-required" aria-hidden="true">*</span> }</label>@if (info() && (layout() === 'vertical' || readOnly())) { <ng-container [ngTemplateOutlet]="information" /> }</div>
+  }
+  <div class="field-control">
+    <input [id]="inputId()" [type]="effectiveType()" [value]="value()" [placeholder]="placeholder()" [disabled]="isDisabled()" [readOnly]="readOnly()" [required]="required() && !readOnly()" [attr.name]="name()" [attr.autocomplete]="autocomplete()" [attr.maxlength]="maxLength()" [attr.aria-label]="!showLabel() ? label() : null" [attr.aria-describedby]="descriptionIds()" [attr.aria-invalid]="hasError() ? 'true' : null" (input)="onInput($event)" (blur)="onBlur()" />
+    @if (showIcon() && !(readOnly() && layout() === 'horizontal')) {
+      <button type="button" class="field-action" [attr.aria-label]="iconLabel()" [attr.aria-pressed]="type() === 'password' ? revealed() : null" [title]="iconLabel()" [disabled]="isDisabled()" (click)="onIconClick()"><span aria-hidden="true"></span></button>
+    }
+  </div>
+  @if (info() && layout() === 'horizontal' && !readOnly()) { <div class="field-external-info"><ng-container [ngTemplateOutlet]="information" /></div> }
+  @if (errorVisible()) { <div class="field-error" [id]="inputId() + '-error'" aria-live="polite">{{ error() }}</div> }
+</div>
+@if (info()) { <span class="field-sr-only" [id]="inputId() + '-info'">{{ info() }}</span> }

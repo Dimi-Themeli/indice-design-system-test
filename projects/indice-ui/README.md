@@ -84,6 +84,86 @@ The provided circle-plus icon is fixed to the exact Figma asset; no other glyphs
 - Long captions are truncated at two lines to preserve the designed square geometry; supply the full action in `label`.
 - Components > Icon Buttons has the searchable 64-state board and a live Angular playground.
 
+## Social Media Buttons
+
+[Figma Social Media Button, node 2284:102](https://www.figma.com/design/9kubN4VqWMZ6nLyb1RMhWM/INDICE-IAM-%7C-Design-System?node-id=2284-102)
+
+Import `IndiceSocialButton` from `indice-ui` and add it to your component's `imports` array.
+
+```html
+<button indiceSocialButton provider="google" (click)="signInWithGoogle()"></button>
+```
+
+| Input | Default | Values |
+| --- | --- | --- |
+| `provider` | `windows` | `windows`, `google`, `facebook`, `apple` |
+| `disabled` | `false` | Native disabled behavior; no new disabled visual state is inferred |
+| `type` | `button` | `button`, `submit`, `reset` |
+
+`SOCIAL_BUTTON_PROVIDERS` and `SocialButtonProvider` are exported. `windows` preserves Figma's identifier for Microsoft. Labels are the original design strings: Sign in with Microsoft, Sign in with Google, Login with Facebook, Sign in with Apple.
+
+- Four providers, each with Default, Hover and Focus previews (12 combinations).
+- Width 254px, height 40px, radius 4px, gap 10px and 12px horizontal padding. Width may shrink to fit smaller containers.
+- Typography intentionally uses Segoe UI Regular, 15px/16px, as supplied in Figma. On platforms without Segoe UI, the browser uses its sans-serif fallback; the font is not redistributed.
+- Four original SVG logos are embedded unchanged: Microsoft 21px; Google, Facebook and Apple approximately 20px.
+- Keyboard focus uses the supplied strong border and title colour, overriding hover. Windows high-contrast mode adds an explicit system-colour outline.
+- Native disabled behavior is available, but Figma supplies no disabled appearance, so the component retains its default appearance.
+- These are presentation components only. Authentication, OAuth configuration, redirects, permissions and provider-policy compliance belong to the consuming application.
+- Components > Social Media contains provider search, state previews, keyboard tabs, a live playground and Angular markup.
+
+## Input Field
+
+[Figma Input Field, node 2029:31](https://www.figma.com/design/9kubN4VqWMZ6nLyb1RMhWM/INDICE-IAM-%7C-Design-System?node-id=2029-31)
+
+Import `IndiceField` from `indice-ui`. The package requires matching Angular Forms peer dependencies. Import `ReactiveFormsModule` for reactive forms or `FormsModule` for `ngModel`. Load Geologica Regular and Light (400 and 300) in the consuming app.
+
+```ts
+import { IndiceField } from 'indice-ui';
+import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+
+// In your standalone component: imports: [IndiceField, ReactiveFormsModule]
+email = new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] });
+```
+
+```html
+<indice-field label="Email" type="email" [formControl]="email" [required]="true" autocomplete="email" [error]="email.touched && email.invalid ? 'Enter a valid email address.' : ''" />
+```
+
+For simple state, use `[(value)]="value"` instead of a forms directive. Do not combine `value` bindings and `formControl`/`ngModel` on the same instance. Validators and when to show errors belong to the consuming form.
+
+| Input | Default | Meaning |
+| --- | --- | --- |
+| `label` | Required | Visible label and accessible fallback when hidden |
+| `value` | Empty string | Two-way string model; CVA handles form bindings |
+| `inputId` | Unique generated ID | ID of the native input and its associated label |
+| `layout` | `vertical` | `vertical` or `horizontal` |
+| `type` | `text` | `text`, `email`, `password`, `tel`, `url`, `search` |
+| `placeholder` | `Input field text default` | Placeholder text |
+| `required` | `false` | Native required attribute and visual star; suppressed in read-only mode |
+| `disabled` | `false` | Native disabled state; form disable also works |
+| `readOnly` | `false` | Copyable native read-only control with view styling |
+| `showLabel` / `showIcon` | `true` | Label and trailing action visibility |
+| `info` | Empty string | Information icon, native tooltip and accessible description |
+| `invalid` | `false` | Error border and `aria-invalid`, without requiring a message |
+| `error` | Empty string | Error border, message and associated description |
+| `showErrorMessage` | `true` | Toggle visible error feedback |
+| `actionLabel` | `View value` | Accessible label for the trailing action on non-password fields |
+| `name` / `maxLength` | `null` | Native input attributes |
+| `autocomplete` | `off` | Native autocomplete hint; configure for actual field purpose |
+
+`iconClick` emits when the trailing action is activated. Password fields toggle visibility and expose `aria-pressed`; other types emit the event for the consuming app to handle. Read-only horizontal fields omit the eye action, as designed. `FieldLayout` and `FieldType` are exported.
+
+- Eleven supplied examples: eight vertical (including the view and two error variants), two editable horizontal, one horizontal view. The catalogue does not invent additional Figma variants.
+- Desktop width 553px; controls are 48px high. Vertical label/control examples total 76px, with error text 102px. Horizontal view is 44px high.
+- Label: Geologica Regular 14px/20px; input: Light 16px/24px; error helper: Regular 12px/18px.
+- Padding 12px/16px, radius 8px, normal border 1px, focus border 2px. Inset borders prevent layout shifts.
+- Read-only vertical has a top rule; horizontal view has a bottom rule and right-aligned value.
+- Horizontal editable layouts stack below a 480px component container width. Read-only horizontal remains a two-column value row.
+- Original 16px information and two 20px eye SVGs are bundled unchanged. Visibility changes retain the supplied eye glyph.
+- Labels, required semantics, disabled and read-only attributes, error IDs and accessible descriptions are linked to the real input. Keyboard-only focus for the read-only horizontal value and icon controls is an accessibility addition where no Figma focus state was supplied.
+- Supply meaningful `info` and action labels. The catalogue's `Field information` string is placeholder content, not a final tooltip specification.
+- Components > Fields > Input Field includes a searchable state board and a reactive-forms playground with validation and reset.
+
 ## Verify
 
 From the workspace root:

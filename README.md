@@ -15,7 +15,7 @@ Open http://127.0.0.1:4200. If occupied, use `npm start -- --port 4201`.
 ## Projects
 
 - `projects/indice-tokens`: typed token data and generated CSS custom properties.
-- `projects/indice-ui`: reusable native Angular text and icon buttons.
+- `projects/indice-ui`: reusable Angular text, icon and social-media buttons, and form fields.
 - `projects/catalogue`: colour, typography, spacing, border and container previews; global search, copy modes and source download.
 - `tokens/primitive.json`: canonical workspace copy of the Figma export.
 - `tools/generate-tokens.mjs`: deterministic generation and import.
@@ -86,3 +86,39 @@ Components > Icon Buttons adds four variants, four sizes and 64 state previews. 
 ```html
 <button indiceIconButton label="Add item" variant="black-filled" size="small" (click)="add()"></button>
 ```
+
+Components > Social Media adds Microsoft, Google, Facebook and Apple buttons with 12 state previews. Import `IndiceSocialButton` from `indice-ui`. Authentication is deliberately left to the consuming app.
+
+```html
+<button indiceSocialButton provider="google" (click)="signInWithGoogle()"></button>
+```
+
+## Fields
+
+Components > Fields > Input Field contains the eleven supplied Figma variants and a live form playground. Import `IndiceField` from `indice-ui`; use `ReactiveFormsModule` with `[formControl]`, `FormsModule` with `ngModel`, or a standalone `[(value)]` binding.
+
+```html
+<indice-field label="Email" type="email" [formControl]="emailControl" [required]="true" [error]="emailError" />
+```
+
+Load Geologica 300 and 400 in the consuming app. See `projects/indice-ui/README.md` for the full API, validation ownership and accessibility behavior.
+
+## Roadmap
+
+- [ ] Designer and engineering approval workflow. Deferred; no approval states or review tooling are implemented yet.
+- [ ] Private npm registry publishing and automated releases. Current delivery uses local package archives, not a published registry package.
+
+## Developer Handoff
+
+Every implemented component page has a **Use It** action with Install, Example, API and Accessibility views. Examples follow the current playground configuration. Field examples include a complete reactive FormControl, disabled state, validators and touched-state error messages; typed playground values are intentionally excluded.
+
+`npm start` and `npm run build` package both libraries into `projects/catalogue/public/packages`. The static catalogue includes these archives and a generated manifest with versions and integrity hashes. Downloads are local versioned npm archives; nothing is published to a registry by these commands.
+
+After downloading both archives into a consuming Angular project's root, install them using the exact command displayed in Use It, then add its global style imports and standalone component example. Angular peer versions are shown in the panel. Original icon assets are bundled in the UI package.
+
+```sh
+npm run build
+npm run delivery:check
+```
+
+The delivery check installs the actual archives into an isolated generated consumer under `.angular/cache`, using the configured npm registry, then strictly compiles six generated Angular examples against those installed packages. It verifies all four component families, including configured and read-only Field examples. It does not publish packages or change registry credentials.

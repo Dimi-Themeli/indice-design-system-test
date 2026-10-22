@@ -9,7 +9,20 @@
     }
   </nav>
   <div class="chapter components-chapter"><app-icon name="layers" /> Components</div>
-  <nav aria-label="Components"><button type="button" (click)="select('buttons')" [class.active]="category() === 'buttons'" [attr.aria-current]="category() === 'buttons' ? 'page' : null"><span class="nav-number">01</span><span>Buttons</span><span class="nav-count">7</span></button><button type="button" (click)="select('icon-buttons')" [class.active]="category() === 'icon-buttons'" [attr.aria-current]="category() === 'icon-buttons' ? 'page' : null"><span class="nav-number">02</span><span>Icon Buttons</span><span class="nav-count">4</span></button></nav>
+  <nav aria-label="Components">
+    <details class="nav-group" open>
+      <summary><span class="nav-number">01</span><span>Buttons</span><app-icon name="chevron" /></summary>
+      <div class="nav-children">
+        <button type="button" (click)="select('buttons')" [class.active]="category() === 'buttons'" [attr.aria-current]="category() === 'buttons' ? 'page' : null"><span>Text Buttons</span><span class="nav-count">7</span></button>
+        <button type="button" (click)="select('icon-buttons')" [class.active]="category() === 'icon-buttons'" [attr.aria-current]="category() === 'icon-buttons' ? 'page' : null"><span>Icon Buttons</span><span class="nav-count">4</span></button>
+        <button type="button" (click)="select('social-buttons')" [class.active]="category() === 'social-buttons'" [attr.aria-current]="category() === 'social-buttons' ? 'page' : null"><span>Social Media</span><span class="nav-count">4</span></button>
+      </div>
+    </details>
+    <details class="nav-group" open>
+      <summary><span class="nav-number">02</span><span>Fields</span><app-icon name="chevron" /></summary>
+      <div class="nav-children"><button type="button" (click)="select('fields')" [class.active]="category() === 'fields'" [attr.aria-current]="category() === 'fields' ? 'page' : null"><span>Input Field</span><span class="nav-count">11</span></button></div>
+    </details>
+  </nav>
   <div class="sidebar-bottom"><span class="status-dot"></span> In progress <span class="edition">{{ isComponent() ? '02 / Components' : '01 / Foundations' }}</span></div>
 </aside>
 @if (menuOpen()) { <button class="scrim" aria-label="Close navigation" (click)="menuOpen.set(false)"></button> }
@@ -20,11 +33,15 @@
     <a class="source-link" href="tokens/primitive.json" download="indice-primitives.json" title="Download source tokens"><app-icon name="download" /><span>Source JSON</span></a>
   </header>
   <main id="main" tabindex="-1">
-    <div class="page-heading"><div><div class="eyebrow">INDICE / {{ isComponent() ? 'COMPONENTS' : 'FOUNDATIONS' }}</div><h1>{{ title() }}<span class="heading-dot">.</span></h1></div><span class="total">@if (category() === 'buttons') { <strong>7</strong> variants / <strong>28</strong> states } @else if (category() === 'icon-buttons') { <strong>4</strong> variants / <strong>4</strong> sizes / <strong>64</strong> states } @else { <strong>{{ tokens.length }}</strong> primitive tokens }</span></div>
+    <div class="page-heading"><div><div class="eyebrow">INDICE / {{ isComponent() ? 'COMPONENTS' : 'FOUNDATIONS' }}</div><h1>{{ title() }}<span class="heading-dot">.</span></h1></div><span class="total">@if (category() === 'buttons') { <strong>7</strong> variants / <strong>28</strong> states } @else if (category() === 'icon-buttons') { <strong>4</strong> variants / <strong>4</strong> sizes / <strong>64</strong> states } @else if (category() === 'social-buttons') { <strong>4</strong> providers / <strong>12</strong> states } @else if (category() === 'fields') { <strong>11</strong> variants / <strong>2</strong> layouts } @else { <strong>{{ tokens.length }}</strong> primitive tokens }</span></div>
     @if (category() === 'buttons') {
       <app-button-catalogue />
     } @else if (category() === 'icon-buttons') {
       <app-icon-button-catalogue />
+    } @else if (category() === 'social-buttons') {
+      <app-social-button-catalogue />
+    } @else if (category() === 'fields') {
+      <app-field-catalogue />
     } @else {
     <div class="toolbar">
       <label class="search"><app-icon name="search" /><input type="search" aria-label="Search all tokens" placeholder="Search tokens, names or values..." [value]="query()" (input)="query.set($any($event.target).value)" />@if (query()) { <button type="button" class="icon-button" title="Clear search" aria-label="Clear search" (click)="query.set('')"><app-icon name="close" /></button> }</label>
