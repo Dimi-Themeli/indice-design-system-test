@@ -1,0 +1,58 @@
+<a class="skip-link" href="#main">Skip to content</a>
+<aside class="sidebar" [class.open]="menuOpen()" aria-label="Catalogue navigation">
+  <a class="brand" href="/" aria-label="Indice home"><img src="assets/INDICE-logo-text-only.svg" alt="Indice" width="160" height="32" /></a>
+  <div class="sidebar-label">DESIGN SYSTEM <span>0.1</span></div>
+  <div class="chapter"><app-icon name="layers" /> Foundations</div>
+  <nav>
+    @for (item of categories; track item.id) {
+      <button type="button" (click)="select(item.id)" [class.active]="category() === item.id && !query()" [attr.aria-current]="category() === item.id && !query() ? 'page' : null"><span class="nav-number">{{ item.number }}</span><span>{{ item.title }}</span><span class="nav-count">{{ count(item.id) }}</span></button>
+    }
+  </nav>
+  <div class="chapter components-chapter"><app-icon name="layers" /> Components</div>
+  <nav aria-label="Components"><button type="button" (click)="select('buttons')" [class.active]="category() === 'buttons'" [attr.aria-current]="category() === 'buttons' ? 'page' : null"><span class="nav-number">01</span><span>Buttons</span><span class="nav-count">7</span></button><button type="button" (click)="select('icon-buttons')" [class.active]="category() === 'icon-buttons'" [attr.aria-current]="category() === 'icon-buttons' ? 'page' : null"><span class="nav-number">02</span><span>Icon Buttons</span><span class="nav-count">4</span></button></nav>
+  <div class="sidebar-bottom"><span class="status-dot"></span> In progress <span class="edition">{{ isComponent() ? '02 / Components' : '01 / Foundations' }}</span></div>
+</aside>
+@if (menuOpen()) { <button class="scrim" aria-label="Close navigation" (click)="menuOpen.set(false)"></button> }
+<div class="workspace">
+  <header class="topbar">
+    <button class="icon-button mobile-menu" type="button" title="Toggle navigation" aria-label="Toggle navigation" [attr.aria-expanded]="menuOpen()" (click)="menuOpen.set(!menuOpen())"><app-icon [name]="menuOpen() ? 'close' : 'menu'" /></button>
+    <div class="breadcrumb">Library <app-icon name="chevron" /> <span>{{ isComponent() ? 'Components' : 'Foundations' }}</span></div>
+    <a class="source-link" href="tokens/primitive.json" download="indice-primitives.json" title="Download source tokens"><app-icon name="download" /><span>Source JSON</span></a>
+  </header>
+  <main id="main" tabindex="-1">
+    <div class="page-heading"><div><div class="eyebrow">INDICE / {{ isComponent() ? 'COMPONENTS' : 'FOUNDATIONS' }}</div><h1>{{ title() }}<span class="heading-dot">.</span></h1></div><span class="total">@if (category() === 'buttons') { <strong>7</strong> variants / <strong>28</strong> states } @else if (category() === 'icon-buttons') { <strong>4</strong> variants / <strong>4</strong> sizes / <strong>64</strong> states } @else { <strong>{{ tokens.length }}</strong> primitive tokens }</span></div>
+    @if (category() === 'buttons') {
+      <app-button-catalogue />
+    } @else if (category() === 'icon-buttons') {
+      <app-icon-button-catalogue />
+    } @else {
+    <div class="toolbar">
+      <label class="search"><app-icon name="search" /><input type="search" aria-label="Search all tokens" placeholder="Search tokens, names or values..." [value]="query()" (input)="query.set($any($event.target).value)" />@if (query()) { <button type="button" class="icon-button" title="Clear search" aria-label="Clear search" (click)="query.set('')"><app-icon name="close" /></button> }</label>
+      <div class="copy-controls"><span>Copy as</span><div class="segmented" role="group" aria-label="Copy format"><button type="button" [class.selected]="copyMode() === 'variable'" [attr.aria-pressed]="copyMode() === 'variable'" (click)="copyMode.set('variable')">CSS variable</button><button type="button" [class.selected]="copyMode() === 'value'" [attr.aria-pressed]="copyMode() === 'value'" (click)="copyMode.set('value')">Value</button></div></div>
+    </div>
+    <div class="results-meta"><span>{{ visible().length }} tokens <span class="meta-separator">/</span> {{ groups().length }} groups</span><span class="collection-name">Primitive / Indice</span></div>
+    @for (group of groups(); track group.name) {
+      <section class="token-section" [attr.aria-label]="group.name">
+        <div class="section-heading"><h2>{{ group.title }}</h2><span>{{ group.tokens.length.toString().padStart(2, '0') }}</span></div>
+        <div [class]="'token-grid ' + group.category">
+          @for (token of group.tokens; track token.name) {
+            <button type="button" class="token" [attr.aria-label]="'Copy ' + token.name" [title]="token.variable + ': ' + token.cssValue" (click)="copy(token)">
+              @switch (token.category) {
+                @case ('colours') { <div class="swatch checker"><div [style.background]="token.cssValue"></div><span class="swatch-copy"><app-icon name="copy" /></span></div> }
+                @case ('fonts') { <div class="font-preview" [style.font-family]="token.group === 'fonts.family' ? token.cssValue : 'Manrope'" [style.font-weight]="token.group === 'fonts.weight' ? token.cssValue : '400'">Aa<span>{{ token.group === 'fonts.family' ? 'The quick brown fox' : 'Ag 0123456789' }}</span></div> }
+                @case ('space') { <div class="measure-preview"><div class="space-bar" [style.width]="token.cssValue"></div><span class="measure-baseline"></span></div> }
+                @case ('border') { <div class="border-preview">@if (token.group === 'border.radius') { <div class="radius-shape" [style.border-radius]="token.cssValue"></div> } @else if (token.group === 'border.width') { <div class="stroke-line" [style.border-top-width]="token.cssValue"></div> } @else { <div class="position-shape" [style.border-bottom-width]="token.value === 'bottom' ? '3px' : '0'" [style.border-top-width]="token.value === 'top' ? '3px' : '0'" [style.border-left-width]="token.value === 'left' ? '3px' : '0'" [style.border-right-width]="token.value === 'right' ? '3px' : '0'"></div> }</div> }
+                @case ('containers') { <div class="container-preview"><div [style.width.%]="+token.value / 1320 * 100"></div></div> }
+              }
+              <div class="token-details"><span class="token-label">{{ token.label }}</span><span class="token-value">{{ token.cssValue }}</span></div>
+              @if (token.category !== 'colours') { <div class="token-path">{{ token.variable }}</div> }
+            </button>
+          }
+        </div>
+      </section>
+    } @empty { <div class="empty"><app-icon name="search" /><h2>No matching tokens</h2><p>{{ query() }}</p><button type="button" (click)="query.set('')">Clear search</button></div> }
+    }
+    <footer><span>Indice Design System</span><span>{{ isComponent() ? 'Components' : 'Foundations' }} / v0.1.0</span></footer>
+  </main>
+</div>
+<div class="toast" role="status" aria-live="polite" [class.visible]="notice()">@if (notice()) { <app-icon name="check" /><span>{{ notice() }}</span> }</div>

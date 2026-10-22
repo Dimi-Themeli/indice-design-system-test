@@ -1,0 +1,6 @@
+.icon-specimen-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 36px 28px; }
+.icon-state { margin-top: 20px; }
+.icon-state h3 { font-size: 12px; font-weight: 500; color: var(--muted); text-transform: capitalize; margin: 0 0 10px; }
+.icon-size-row { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+.icon-specimen { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.icon-specimen > span { font-size: 12px; color: var(--muted); }

@@ -1,0 +1,149 @@
+:host {
+  --button-text-active: var(--colours-text-element-primary-default, var(--indice-colours-main-neutral-900, #201f1e));
+  --button-text-hover: var(--colours-text-element-primary-hover, var(--indice-colours-main-neutral-600, #6f6d68));
+  --button-text-pressed: var(--colours-text-element-primary-pressed, var(--indice-colours-main-neutral-950, #141312));
+  --button-fill-active: transparent;
+  --button-fill-hover: transparent;
+  --button-fill-pressed: transparent;
+  --button-fill-disabled: transparent;
+  --button-border-active: transparent;
+  --button-border-hover: transparent;
+  --button-border-pressed: transparent;
+  --button-border-disabled: transparent;
+  --button-left-active: url('./assets/95e1d.svg');
+  --button-right-active: url('./assets/c2dc2.svg');
+  --button-left-hover: url('./assets/fb3d9.svg');
+  --button-right-hover: url('./assets/401ed.svg');
+  --button-left-pressed: url('./assets/361ca.svg');
+  --button-right-pressed: url('./assets/7d9bb.svg');
+  --button-text: var(--button-text-active);
+  --button-fill: var(--button-fill-active);
+  --button-border: var(--button-border-active);
+  --button-left: var(--button-left-active);
+  --button-right: var(--button-right-active);
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--buttons-gap, var(--indice-space-8, 8px));
+  min-height: 40px;
+  max-width: 100%;
+  padding: var(--buttons-gap, var(--indice-space-8, 8px)) var(--indice-space-16, 16px);
+  border: 0;
+  border-radius: var(--buttons-border-radius-basic, var(--indice-border-radius-12, 12px));
+  box-shadow: inset 0 0 0 1px var(--button-border);
+  color: var(--button-text);
+  background: var(--button-fill);
+  font-family: var(--font-family-body, var(--indice-fonts-family-geologica, 'Geologica')), sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  font-variation-settings: 'CRSV' 0, 'SHRP' 0;
+  letter-spacing: 0;
+  text-align: center;
+  vertical-align: middle;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:host([data-variant='primary-filled']), :host([data-variant='secondary-filled']) {
+  --button-text-active: var(--colours-text-on-filled-button, var(--indice-colours-main-global-0, #fff));
+  --button-text-hover: var(--button-text-active);
+  --button-text-pressed: var(--button-text-active);
+  --button-fill-disabled: var(--colours-surface-element-disabled-reverse, var(--indice-colours-main-neutral-100, #efeeea));
+}
+
+:host([data-variant='primary-filled']) {
+  --button-text-active: var(--colours-text-on-filled-button-black, var(--indice-colours-main-global-0, #fff));
+  --button-fill-active: var(--colours-surface-element-primary-default, var(--indice-colours-main-neutral-900, #201f1e));
+  --button-fill-hover: var(--colours-surface-element-primary-hover, var(--indice-colours-main-neutral-600, #6f6d68));
+  --button-fill-pressed: var(--colours-surface-element-primary-pressed, var(--indice-colours-main-neutral-950, #141312));
+  --button-left-active: url('./assets/40e50.svg');
+  --button-right-active: url('./assets/a8dec.svg');
+  --button-left-hover: var(--button-left-active);
+  --button-right-hover: var(--button-right-active);
+  --button-left-pressed: var(--button-left-active);
+  --button-right-pressed: var(--button-right-active);
+}
+
+:host([data-variant='secondary-outline']) {
+  --button-border-active: var(--colours-border-element-primary-active, var(--indice-colours-main-neutral-900, #201f1e));
+  --button-border-hover: var(--colours-border-element-primary-hover, var(--indice-colours-main-neutral-600, #6f6d68));
+  --button-border-pressed: var(--colours-border-element-primary-pressed, var(--indice-colours-main-neutral-950, #141312));
+  --button-border-disabled: var(--colours-border-default, var(--indice-colours-main-neutral-300, #ccc8bf));
+}
+
+:host([data-variant='secondary-filled']) {
+  --button-fill-active: var(--colours-surface-element-secondary-default, var(--indice-colours-main-secondary-700, #1b6471));
+  --button-fill-hover: var(--colours-surface-element-secondary-hover, var(--indice-colours-main-secondary-600, #2b7f8d));
+  --button-fill-pressed: var(--colours-surface-element-secondary-pressed, var(--indice-colours-main-secondary-800, #0f4a55));
+  --button-left-active: url('./assets/dd5f0.svg');
+  --button-right-active: url('./assets/ce946.svg');
+  --button-left-hover: var(--button-left-active);
+  --button-right-hover: var(--button-right-active);
+  --button-left-pressed: var(--button-left-active);
+  --button-right-pressed: var(--button-right-active);
+}
+
+:host([data-variant='secondary-clear']) {
+  --button-text-active: var(--colours-text-element-secondary-default, var(--indice-colours-main-secondary-600, #2b7f8d));
+  --button-text-hover: var(--colours-text-element-secondary-hover, var(--indice-colours-main-secondary-400, #56b3c1));
+  --button-text-pressed: var(--colours-text-element-secondary-pressed, var(--indice-colours-main-secondary-700, #1b6471));
+  --button-left-active: url('./assets/c7510.svg');
+  --button-right-active: url('./assets/f94d2.svg');
+  --button-left-hover: url('./assets/72bbb.svg');
+  --button-right-hover: url('./assets/d8626.svg');
+  --button-left-pressed: url('./assets/25f1e.svg');
+  --button-right-pressed: url('./assets/79401.svg');
+}
+
+:host([data-variant='delete-clear']), :host([data-variant='delete-outline']) {
+  --button-text-active: var(--colours-text-error, var(--indice-colours-functions-error-600, #cc1c2e));
+  --button-text-hover: var(--colours-text-element-error-hover, var(--indice-colours-functions-error-500, #f52439));
+  --button-text-pressed: var(--colours-text-element-error-pressed, var(--indice-colours-functions-error-800, #6d0a14));
+  --button-left-active: url('./assets/b9456.svg');
+  --button-right-active: url('./assets/11376.svg');
+  --button-left-hover: url('./assets/04c62.svg');
+  --button-right-hover: url('./assets/66f22.svg');
+  --button-left-pressed: url('./assets/bfb47.svg');
+  --button-right-pressed: url('./assets/ebdb4.svg');
+}
+
+:host([data-variant='delete-outline']) {
+  --button-border-active: var(--colours-border-error, var(--indice-colours-functions-error-600, #cc1c2e));
+  --button-border-hover: var(--colours-border-element-error-hover, var(--indice-colours-functions-error-500, #f52439));
+  --button-border-pressed: var(--colours-border-element-error-pressed, var(--indice-colours-functions-error-800, #6d0a14));
+  --button-border-disabled: var(--colours-border-default, var(--indice-colours-main-neutral-300, #ccc8bf));
+}
+
+:host(:not([data-preview-state]):hover:enabled), :host([data-preview-state='hover']:enabled) {
+  --button-text: var(--button-text-hover);
+  --button-fill: var(--button-fill-hover);
+  --button-border: var(--button-border-hover);
+  --button-left: var(--button-left-hover);
+  --button-right: var(--button-right-hover);
+}
+
+:host(:not([data-preview-state]):active:enabled), :host([data-preview-state='pressed']:enabled) {
+  --button-text: var(--button-text-pressed);
+  --button-fill: var(--button-fill-pressed);
+  --button-border: var(--button-border-pressed);
+  --button-left: var(--button-left-pressed);
+  --button-right: var(--button-right-pressed);
+}
+
+:host(:disabled) {
+  --button-text: var(--colours-text-on-button-disabled, var(--indice-colours-main-neutral-500, #8e8b85));
+  --button-fill: var(--button-fill-disabled);
+  --button-border: var(--button-border-disabled);
+  --button-left: url('./assets/df463.svg');
+  --button-right: url('./assets/d3df0.svg');
+  cursor: not-allowed;
+}
+
+:host(:focus-visible) { outline: 2px solid var(--indice-colours-main-secondary-600, #2b7f8d); outline-offset: 3px; }
+.button-icon { display: block; width: 18px; height: 18px; flex: 0 0 18px; background-position: center; background-repeat: no-repeat; background-size: 18px 18px; }
+.leading { background-image: var(--button-left); }
+.trailing { background-image: var(--button-right); }
+.button-label { min-width: 0; overflow-wrap: anywhere; }
+@media (forced-colors: active) { :host { border: 1px solid ButtonText; } :host(:disabled) { color: GrayText; border-color: GrayText; } }

@@ -1,0 +1,134 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "cli": {
+    "packageManager": "npm",
+    "analytics": false
+  },
+  "newProjectRoot": "projects",
+  "projects": {
+    "indice-tokens": {
+      "projectType": "library",
+      "root": "projects/indice-tokens",
+      "sourceRoot": "projects/indice-tokens/src",
+      "prefix": "indice",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/indice-tokens/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/indice-tokens/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/indice-tokens/tsconfig.spec.json"
+          }
+        }
+      }
+    },
+    "catalogue": {
+      "projectType": "application",
+      "schematics": {},
+      "root": "projects/catalogue",
+      "sourceRoot": "projects/catalogue/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/catalogue/src/main.ts",
+            "tsConfig": "projects/catalogue/tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/catalogue/public"
+              },
+              {
+                "glob": "**/*",
+                "input": "assets",
+                "output": "assets"
+              },
+              {
+                "glob": "primitive.json",
+                "input": "tokens",
+                "output": "tokens"
+              }
+            ],
+            "styles": ["projects/catalogue/src/styles.css"]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "1MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "12kB",
+                  "maximumError": "16kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "catalogue:build:production"
+            },
+            "development": {
+              "buildTarget": "catalogue:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test"
+        }
+      }
+    },
+    "indice-ui": {
+      "projectType": "library",
+      "root": "projects/indice-ui",
+      "sourceRoot": "projects/indice-ui/src",
+      "prefix": "indice",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/indice-ui/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/indice-ui/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/indice-ui/tsconfig.spec.json"
+          }
+        }
+      }
+    }
+  }
+}

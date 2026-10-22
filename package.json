@@ -1,0 +1,38 @@
+{
+  "name": "indice-design-system",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "tokens:generate": "node tools/generate-tokens.mjs",
+    "tokens:check": "node tools/generate-tokens.mjs --check && node --test tools/tokens.test.mjs",
+    "start": "npm run tokens:generate && ng serve catalogue --host 127.0.0.1",
+    "build": "npm run tokens:generate && ng build indice-tokens && ng build indice-ui && ng build catalogue",
+    "watch": "ng build --watch --configuration development",
+    "test": "npm run tokens:check && ng test indice-ui --watch=false && ng test catalogue --watch=false"
+  },
+  "private": true,
+  "packageManager": "npm@11.16.0",
+  "dependencies": {
+    "@angular/common": "^22.2.0",
+    "@angular/compiler": "^22.2.0",
+    "@angular/core": "^22.2.0",
+    "@angular/forms": "^22.2.0",
+    "@angular/platform-browser": "^22.2.0",
+    "@angular/router": "^22.2.0",
+    "@fontsource/geologica": "^5.3.0",
+    "@fontsource/manrope": "^5.3.0",
+    "lucide": "^1.61.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^22.2.3",
+    "@angular/cli": "^22.2.3",
+    "@angular/compiler-cli": "^22.2.0",
+    "jsdom": "^30.0.0",
+    "ng-packagr": "^22.2.0",
+    "prettier": "^3.8.1",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.0"
+  }
+}

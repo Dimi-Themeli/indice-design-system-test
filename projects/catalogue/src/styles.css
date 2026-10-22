@@ -1,0 +1,20 @@
+@import '@fontsource/manrope/300.css';
+@import '@fontsource/manrope/400.css';
+@import '@fontsource/manrope/500.css';
+@import '@fontsource/manrope/600.css';
+@import '@fontsource/manrope/700.css';
+@import '@fontsource/manrope/800.css';
+@import '@fontsource/geologica/400.css';
+@import '@fontsource/geologica/300.css';
+@import '@fontsource/geologica/600.css';
+@import '../../indice-tokens/src/tokens.css';
+
+* { box-sizing: border-box; letter-spacing: 0; }
+body { margin: 0; background: #fdfefd; color: #282c2a; font: 400 14px/1.5 Manrope, sans-serif; }
+button, input { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+button { cursor: pointer; }
+button:focus-visible, a:focus-visible { outline: 2px solid #537b63; outline-offset: 4px; }
+app-icon { display: inline-flex; flex-shrink: 0; vertical-align: middle; }
+app-icon svg { display: block; }
+::selection { background: #dce9dc; color: #253d2d; }
