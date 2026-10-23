@@ -9,7 +9,7 @@ import { FieldCatalogue } from './fields';
 @Component({
   imports: [Icon, ButtonCatalogue, IconButtonCatalogue, SocialButtonCatalogue, FieldCatalogue],
   selector: 'app-root',
-  styleUrls: ['./app.css', './theme-chooser.css'],
+  styleUrls: ['./app.css', './theme-chooser.css', './project-wizard.css'],
   templateUrl: './app.html',
   host: { '(document:keydown.escape)': 'menuOpen.set(false)', '[attr.data-role]': 'role()' },
 })
@@ -26,6 +26,14 @@ export class App {
   readonly query = signal('');
   readonly copyMode = signal<'variable' | 'value'>('variable');
   readonly role = signal<'designer' | 'developer'>('developer');
+  readonly projectSetupSteps = [
+    { title: 'Project details', summary: 'Project name, customer, description, desktop or mobile, and supported light/dark modes.' },
+    { title: 'Design references', summary: 'Optional Figma file or frame links and reference screenshots for the branded theme.' },
+    { title: 'Brand assets', summary: 'Logos, app icons, and licensed fonts or approved font fallbacks.' },
+    { title: 'Token mapping', summary: 'Import a token JSON file or start from the base theme; map colours, typography, spacing and radii to shared component tokens.' },
+    { title: 'Component preview', summary: 'Review the shared components across variants, states and screen sizes; check contrast and missing theme values.' },
+    { title: 'Review and publish', summary: 'Review theme changes, request developer approval, and publish a versioned theme for the shared Angular library.' },
+  ];
   readonly themePreviews = [
     { id: 'company-a', name: 'Company A', modes: 'Light', platform: 'Desktop app', image: 'assets/theme-company-a.png', sample: false },
     { id: 'company-b', name: 'Company B / Workspace', modes: 'Light & dark', platform: 'Desktop app', image: 'assets/theme-company-b.png', sample: true },
@@ -65,6 +73,12 @@ export class App {
   openThemeChooser(dialog: HTMLDialogElement) {
     this.menuOpen.set(false);
     this.previewThemeId.set('company-a');
+    dialog.showModal();
+  }
+
+  openProjectWizard(dialog: HTMLDialogElement) {
+    if (this.role() !== 'designer') return;
+    this.menuOpen.set(false);
     dialog.showModal();
   }
 

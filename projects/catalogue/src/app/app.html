@@ -1,4 +1,5 @@
 <a class="skip-link" href="#main">Skip to content</a>
+<div class="demo-ribbon" aria-label="Demo workspace"><span class="ribbon-title">INDICE / DEMO</span><div class="role-switcher" role="group" aria-labelledby="demo-role-label"><span id="demo-role-label" class="role-label">Demo role</span><div class="role-options"><label class="role-choice"><input type="radio" name="demo-role" value="designer" [checked]="role() === 'designer'" (change)="setRole('designer')" /><span>Designer</span></label><label class="role-choice"><input type="radio" name="demo-role" value="developer" [checked]="role() === 'developer'" (change)="setRole('developer')" /><span>Developer</span></label></div></div></div>
 <aside class="sidebar" [class.open]="menuOpen()" aria-label="Catalogue navigation">
   <a class="brand" href="/" aria-label="Indice home"><img src="assets/INDICE-logo-text-only.svg" alt="Indice" width="160" height="32" /></a>
   <div class="chapter"><app-icon name="layers" /> Foundations</div>
@@ -30,15 +31,16 @@
     <button class="icon-button mobile-menu" type="button" title="Toggle navigation" aria-label="Toggle navigation" [attr.aria-expanded]="menuOpen()" (click)="menuOpen.set(!menuOpen())"><app-icon [name]="menuOpen() ? 'close' : 'menu'" /></button>
     <div class="system-context"><div class="system-name">Design System <span class="system-version">0.0</span></div><div class="theme-context"><span>Themed for Company A</span><button #themeTrigger type="button" class="source-link theme-change" (click)="openThemeChooser(themeChooser)"><app-icon name="change" /><span>Change theme</span></button></div></div>
     <div class="topbar-actions">
-      <div class="role-switcher" role="group" aria-labelledby="demo-role-label">
-        <span id="demo-role-label" class="role-label">Demo role</span>
-        <div class="role-options">
-          <label class="role-choice"><input type="radio" name="demo-role" value="designer" [checked]="role() === 'designer'" (change)="setRole('designer')" /><span><app-icon name="layers" />Designer</span></label>
-          <label class="role-choice"><input type="radio" name="demo-role" value="developer" [checked]="role() === 'developer'" (change)="setRole('developer')" /><span><app-icon name="code" />Developer</span></label>
-        </div>
-      </div>
+      <button #projectTrigger type="button" class="add-project" [disabled]="role() !== 'designer'" [title]="role() === 'designer' ? 'Add project' : 'Switch to Designer to add a project'" (click)="openProjectWizard(projectWizard)"><app-icon name="add" />Add project</button>
     </div>
   </header>
+  <dialog #projectWizard class="theme-dialog project-dialog" aria-labelledby="project-wizard-title" (click)="onThemeBackdrop($event)" (keydown.escape)="projectWizard.close()" (close)="projectTrigger.focus()">
+    <header class="theme-dialog-header"><div><span class="project-stage">DESIGNER / NEW PROJECT</span><h2 id="project-wizard-title">Add project</h2></div><button type="button" class="icon-button" aria-label="Close project wizard" title="Close project wizard" (click)="projectWizard.close()"><app-icon name="close" /></button></header>
+    <ol class="project-steps" aria-label="Proposed project setup steps">
+      @for (step of projectSetupSteps; track step.title) { <li><h3>{{ step.title }}</h3><p>{{ step.summary }}</p></li> }
+    </ol>
+    <footer class="theme-dialog-actions"><span>Draft workflow<small>Project creation is not connected yet.</small></span><button type="button" (click)="projectWizard.close()">Done</button></footer>
+  </dialog>
   <dialog #themeChooser class="theme-dialog" aria-labelledby="theme-chooser-title" (click)="onThemeBackdrop($event)" (keydown.escape)="themeChooser.close()" (close)="themeTrigger.focus()">
     <header class="theme-dialog-header"><h2 id="theme-chooser-title">Change theme</h2><button type="button" class="icon-button" aria-label="Close theme chooser" title="Close theme chooser" (click)="themeChooser.close()"><app-icon name="close" /></button></header>
     <div class="theme-options" role="group" aria-label="Available themes">

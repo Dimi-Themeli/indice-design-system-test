@@ -1,7 +1,9 @@
-:host { display: block; --ink: #282c2a; --muted: #737975; --line: #e5e8e5; --accent: var(--indice-colours-main-accent-500); }
+:host { display: block; --ink: #282c2a; --muted: #737975; --line: #e5e8e5; --accent: var(--indice-colours-main-accent-500); --demo-ribbon-height: 40px; }
+.demo-ribbon { position: sticky; top: 0; z-index: 6; height: var(--demo-ribbon-height); padding: 4px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid #d4dfe2; background: #eaf0f2; }
+.ribbon-title { color: #4c626a; font-size: 12px; font-weight: 700; white-space: nowrap; }
 .skip-link { position: fixed; top: -80px; left: 16px; z-index: 20; background: white; padding: 12px; }
 .skip-link:focus { top: 12px; }
-.sidebar { position: fixed; inset: 0 auto 0 0; width: 236px; background: #f4f6f3; border-right: 1px solid var(--line); padding: 36px 22px 22px; display: flex; flex-direction: column; overflow-y: auto; z-index: 5; }
+.sidebar { position: fixed; inset: var(--demo-ribbon-height) auto 0 0; width: 236px; background: #f4f6f3; border-right: 1px solid var(--line); padding: 36px 22px 22px; display: flex; flex-direction: column; overflow-y: auto; z-index: 5; }
 .sidebar > * { flex-shrink: 0; }
 .brand { display: flex; align-items: center; min-height: 37px; margin-bottom: 42px; text-decoration: none; }
 .brand img { display: block; width: 160px; height: auto; max-width: 100%; }
@@ -28,10 +30,10 @@ nav button.active { color: #263c30; background: #e2e9df; font-weight: 700; }
 .topbar-actions { display: flex; align-items: center; gap: 24px; margin-left: auto; }
 .role-switcher { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .role-label { color: var(--muted); font-size: 12px; white-space: nowrap; }
-.role-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 5px; background: #f6f7f5; }
+.role-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 5px; background: #f6f7f5; }
 .role-choice { position: relative; min-width: 0; cursor: pointer; }
 .role-choice input { position: absolute; width: 1px; height: 1px; margin: 0; clip-path: inset(50%); overflow: hidden; }
-.role-choice > span { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 6px 10px; border-radius: 3px; color: #657068; font-size: 14px; }
+.role-choice > span { display: flex; align-items: center; justify-content: center; min-height: 24px; padding: 3px 8px; border-radius: 3px; color: #657068; font-size: 12px; }
 .role-choice:hover > span { background: #e9ede7; }
 .role-choice input:checked + span { background: white; color: #263c30; box-shadow: 0 1px 3px #00000012; font-weight: 600; }
 .role-choice input:focus-visible + span { outline: 2px solid #537b63; outline-offset: 2px; }

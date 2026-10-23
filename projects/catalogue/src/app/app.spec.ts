@@ -53,6 +53,35 @@ describe('App', () => {
     expect(element.getAttribute('data-role')).toBe('developer');
   });
 
+  it('places demo roles in the ribbon and enables the draft project workflow only for Designer', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelectorAll('.demo-ribbon .role-options input').length).toBe(2);
+    expect(element.querySelectorAll('.demo-ribbon .role-choice app-icon').length).toBe(0);
+    expect(element.querySelector('.topbar .role-switcher')).toBeNull();
+    const trigger = element.querySelector('.topbar .add-project') as HTMLButtonElement;
+    const dialog = element.querySelector('.project-dialog') as HTMLDialogElement;
+    dialog.showModal = vi.fn();
+    dialog.close = vi.fn();
+    expect(trigger.disabled).toBe(true);
+    fixture.componentInstance.openProjectWizard(dialog);
+    expect(dialog.showModal).not.toHaveBeenCalled();
+    (element.querySelector('.demo-ribbon input[value="designer"]') as HTMLInputElement).click();
+    await fixture.whenStable();
+    expect(trigger.disabled).toBe(false);
+    trigger.click();
+    expect(dialog.showModal).toHaveBeenCalledOnce();
+    expect(dialog.querySelectorAll('.project-steps li').length).toBe(6);
+    expect(dialog.textContent).toContain('Token mapping');
+    expect(dialog.textContent).toContain('Project creation is not connected yet.');
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(dialog.close).toHaveBeenCalledOnce();
+    const focus = vi.spyOn(trigger, 'focus');
+    dialog.dispatchEvent(new Event('close'));
+    expect(focus).toHaveBeenCalledOnce();
+  });
+
   it('replaces the breadcrumb with design system and theme context and opens the current theme chooser', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
@@ -61,7 +90,7 @@ describe('App', () => {
     expect(element.querySelector('.sidebar-label')).toBeNull();
     expect(element.querySelector('.system-name')?.textContent).toBe('Design System 0.0');
     expect(element.querySelector('.theme-context')?.textContent).toContain('Themed for Company A');
-    const dialog = element.querySelector('.theme-dialog') as HTMLDialogElement;
+    const dialog = element.querySelector('dialog[aria-labelledby="theme-chooser-title"]') as HTMLDialogElement;
     dialog.showModal = vi.fn();
     dialog.close = vi.fn();
     fixture.componentInstance.menuOpen.set(true);
