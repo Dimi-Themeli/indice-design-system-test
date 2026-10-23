@@ -9,9 +9,9 @@ import { FieldCatalogue } from './fields';
 @Component({
   imports: [Icon, ButtonCatalogue, IconButtonCatalogue, SocialButtonCatalogue, FieldCatalogue],
   selector: 'app-root',
-  styleUrl: './app.css',
+  styleUrls: ['./app.css', './theme-chooser.css'],
   templateUrl: './app.html',
-  host: { '(document:keydown.escape)': 'menuOpen.set(false)' },
+  host: { '(document:keydown.escape)': 'menuOpen.set(false)', '[attr.data-role]': 'role()' },
 })
 export class App {
   readonly categories = [
@@ -25,6 +25,15 @@ export class App {
   readonly category = signal('colours');
   readonly query = signal('');
   readonly copyMode = signal<'variable' | 'value'>('variable');
+  readonly role = signal<'designer' | 'developer'>('developer');
+  readonly themePreviews = [
+    { id: 'company-a', name: 'Company A', modes: 'Light', platform: 'Desktop app', image: 'assets/theme-company-a.png', sample: false },
+    { id: 'company-b', name: 'Company B / Workspace', modes: 'Light & dark', platform: 'Desktop app', image: 'assets/theme-company-b.png', sample: true },
+    { id: 'company-c', name: 'Company C / Pocket', modes: 'Light', platform: 'Mobile app', image: 'assets/theme-company-c.png', sample: true },
+    { id: 'company-d', name: 'Company D / Console', modes: 'Dark', platform: 'Desktop & mobile', image: 'assets/theme-company-d.png', sample: true },
+  ] as const;
+  readonly previewThemeId = signal('company-a');
+  readonly selectedThemePreview = computed(() => this.themePreviews.find(theme => theme.id === this.previewThemeId())!);
   readonly menuOpen = signal(false);
   readonly notice = signal('');
   private noticeTimer?: ReturnType<typeof setTimeout>;
@@ -47,6 +56,28 @@ export class App {
   });
 
   count(category: string) { return TOKENS.filter(token => token.category === category).length; }
+
+  setRole(role: 'designer' | 'developer') {
+    this.role.set(role);
+    this.menuOpen.set(false);
+  }
+
+  openThemeChooser(dialog: HTMLDialogElement) {
+    this.menuOpen.set(false);
+    this.previewThemeId.set('company-a');
+    dialog.showModal();
+  }
+
+  selectThemePreview(id: string) {
+    if (this.themePreviews.some(theme => theme.id === id)) this.previewThemeId.set(id);
+  }
+
+  onThemeBackdrop(event: MouseEvent) {
+    const dialog = event.currentTarget as HTMLDialogElement;
+    if (event.target !== dialog) return;
+    const bounds = dialog.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close();
+  }
 
   select(category: string) {
     this.category.set(category);

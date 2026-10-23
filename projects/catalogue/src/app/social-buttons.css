@@ -1,3 +1,4 @@
-.social-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 36px 24px; }
+.social-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 304px), 1fr)); gap: 16px; }
 .social-specimen { min-width: 0; }
+.social-specimen button { max-width: 100%; }
 .live-preview { padding-inline: 0; }

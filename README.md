@@ -110,15 +110,19 @@ Load Geologica 300 and 400 in the consuming app. See `projects/indice-ui/README.
 
 ## Developer Handoff
 
-Every implemented component page has a **Use It** action with Install, Example, API and Accessibility views. Examples follow the current playground configuration. Field examples include a complete reactive FormControl, disabled state, validators and touched-state error messages; typed playground values are intentionally excluded.
+Every implemented component page uses bordered radio cards to select a variant before enabling **Use It**. Selection stays synchronized with the Playground. Use It opens on **Code**, with the complete standalone Angular component first and a copy action. Template, imports and form state remain available as read-only references. The header includes a copyable CSS selector, not unsupported internal class names. **Setup**, **API** and **Accessibility** are secondary views.
+
+For an application that already has the design system installed, copy the standalone example or use its template, imports and form state as references for an existing page. Field presets preserve layout, read-only/disabled state, example values and error presentation. Generated reactive forms include validators and touched-state error messages; values typed into the Playground are intentionally excluded.
+
+**Configuration JSON** is an editable demo configuration for the selected component's inputs. **Apply JSON** validates property names, types and supported options before regenerating the Angular example; errors preserve the last valid example. **Reset** or reopening the modal restores the selected catalogue configuration. JSON edits are local to the modal and are not saved to projects. Explicit `initialValue` entries in JSON are exported. This is not a runtime JSON form renderer, and applications do not need to load this JSON to use the generated Angular code.
 
 `npm start` and `npm run build` package both libraries into `projects/catalogue/public/packages`. The static catalogue includes these archives and a generated manifest with versions and integrity hashes. Downloads are local versioned npm archives; nothing is published to a registry by these commands.
 
-After downloading both archives into a consuming Angular project's root, install them using the exact command displayed in Use It, then add its global style imports and standalone component example. Angular peer versions are shown in the panel. Original icon assets are bundled in the UI package.
+Package installation is a one-time project setup, not a step for each component. For a new consuming application only, download both archives into the project's root and use the command and global style imports in **Setup**. Angular peer versions are shown there. Original icon assets are bundled in the UI package. Social buttons provide presentation only; application actions and authentication remain the consuming application's responsibility.
 
 ```sh
 npm run build
 npm run delivery:check
 ```
 
-The delivery check installs the actual archives into an isolated generated consumer under `.angular/cache`, using the configured npm registry, then strictly compiles six generated Angular examples against those installed packages. It verifies all four component families, including configured and read-only Field examples. It does not publish packages or change registry credentials.
+The delivery check installs the actual archives into an isolated generated consumer under `.angular/cache`, using the configured npm registry, then strictly compiles twelve generated Angular examples against those installed packages. It verifies all four component families, including configured, read-only, prefilled and error Field examples, plus JSON-generated examples for every component family. It does not publish packages or change registry credentials.

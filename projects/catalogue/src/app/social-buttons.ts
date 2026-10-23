@@ -15,6 +15,7 @@ export class SocialButtonCatalogue {
   readonly view = signal<'states' | 'playground'>('states');
   readonly query = signal('');
   readonly provider = signal<SocialButtonProvider>('windows');
+  readonly hasSelection = signal(false);
   readonly disabled = signal(false);
   readonly activations = signal(0);
   readonly notice = signal('');
@@ -22,7 +23,10 @@ export class SocialButtonCatalogue {
   readonly code = computed(() => `<button indiceSocialButton\n  provider="${this.provider()}"${this.disabled() ? '\n  [disabled]="true"' : ''}\n></button>`);
 
   setProvider(value: string) {
-    if (this.providers.some(provider => provider.id === value)) this.provider.set(value as SocialButtonProvider);
+    if (this.providers.some(provider => provider.id === value)) {
+      this.provider.set(value as SocialButtonProvider);
+      this.hasSelection.set(true);
+    }
   }
 
   onTabKey(event: KeyboardEvent) {

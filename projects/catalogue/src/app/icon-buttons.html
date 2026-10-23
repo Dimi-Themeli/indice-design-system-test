@@ -3,19 +3,19 @@
     <button type="button" role="tab" id="icon-states-tab" aria-controls="icon-states-panel" [attr.aria-selected]="view() === 'states'" [attr.tabindex]="view() === 'states' ? 0 : -1" [class.selected]="view() === 'states'" (click)="view.set('states')">States</button>
     <button type="button" role="tab" id="icon-playground-tab" aria-controls="icon-playground-panel" [attr.aria-selected]="view() === 'playground'" [attr.tabindex]="view() === 'playground' ? 0 : -1" [class.selected]="view() === 'playground'" (click)="view.set('playground')">Playground</button>
   </div>
-  <div class="toolbar-actions"><a href="https://www.figma.com/design/9kubN4VqWMZ6nLyb1RMhWM/INDICE-IAM-%7C-Design-System?node-id=2307-507" target="_blank" rel="noopener noreferrer" title="Open icon button design in Figma">Figma <app-icon name="layers" /></a><app-use-it component="icon-button" [markup]="code()" /></div>
+  <div class="toolbar-actions"><a href="https://www.figma.com/design/9kubN4VqWMZ6nLyb1RMhWM/INDICE-IAM-%7C-Design-System?node-id=2307-507" target="_blank" rel="noopener noreferrer" title="Open icon button design in Figma">Figma <app-icon name="layers" /></a><app-use-it component="icon-button" [markup]="code()" [disabled]="!hasSelection()" /></div>
 </div>
 @if (view() === 'states') {
   <section id="icon-states-panel" role="tabpanel" aria-labelledby="icon-states-tab">
     <label class="variant-search"><app-icon name="search" /><input type="search" aria-label="Search icon button variants" placeholder="Search icon button variants..." [value]="query()" (input)="query.set($any($event.target).value)" /></label>
-    <div class="icon-specimen-grid">
+    <div class="icon-specimen-grid" role="group" aria-label="Icon button variant">
       @for (variant of matches(); track variant) {
-        <section class="variant-section" [attr.aria-label]="variant">
-          <h2>{{ variant.replaceAll('-', ' ') }}</h2>
+        <section class="variant-section" [class.is-selected]="hasSelection() && this.variant() === variant" [attr.aria-label]="variant">
+          <h2><label class="variant-choice"><input type="radio" name="icon-button-variant" [value]="variant" [checked]="hasSelection() && this.variant() === variant" (change)="setVariant(variant)" /><span>{{ variant.replaceAll('-', ' ') }}</span></label></h2>
           @for (state of states; track state) {
             <div class="icon-state"><h3>{{ state }}</h3><div class="icon-size-row">
               @for (size of sizes; track size) {
-                <div class="icon-specimen"><span>{{ size }}</span><button indiceIconButton [label]="variant + ' ' + size + ' ' + state" [variant]="variant" [size]="size" [attr.data-preview-state]="state" [disabled]="state === 'inactive'"></button></div>
+                <div class="icon-specimen"><span>{{ size }}</span><button indiceIconButton tabindex="-1" [label]="variant + ' ' + size + ' ' + state" [variant]="variant" [size]="size" [attr.data-preview-state]="state" [disabled]="state === 'inactive'"></button></div>
               }
             </div></div>
           }
@@ -26,7 +26,7 @@
 } @else {
   <section id="icon-playground-panel" role="tabpanel" aria-labelledby="icon-playground-tab">
     <div class="playground-controls">
-      <label>Variant<select aria-label="Icon button variant" [value]="variant()" (change)="setVariant($any($event.target).value)">@for (item of variants; track item) { <option [value]="item">{{ item.replaceAll('-', ' ') }}</option> }</select></label>
+      <label>Variant<select aria-label="Icon button variant" (change)="setVariant($any($event.target).value)"><option value="" disabled [selected]="!hasSelection()">Select variant</option>@for (item of variants; track item) { <option [value]="item" [selected]="hasSelection() && variant() === item">{{ item.replaceAll('-', ' ') }}</option> }</select></label>
       <label>Size<select aria-label="Icon button size" [value]="size()" (change)="setSize($any($event.target).value)">@for (item of sizes; track item) { <option [value]="item">{{ item }}</option> }</select></label>
       <label>Accessible label<input type="text" aria-label="Icon button accessible label" maxlength="100" required [value]="label()" (input)="label.set($any($event.target).value)" /></label>
       @if (size() === 'xx-large') { <label>Caption<input type="text" aria-label="Icon button caption" maxlength="40" [value]="caption()" (input)="caption.set($any($event.target).value)" /></label> }

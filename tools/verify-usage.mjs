@@ -18,7 +18,7 @@ if (result.status !== 0) throw new Error(result.stderr || result.stdout);
 console.log('Installed both downloadable archives in an isolated consumer.');
 const utility = await readFile(path.join(root, 'projects/catalogue/src/app/usage-data.ts'), 'utf8');
 const compiled = ts.transpileModule(utility, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
-const { buildUsageExample } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+const { buildConfiguredUsage, buildUsageExample } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 const examples = [
   ['button', 'button', '<button indiceButton variant="delete-clear" [showLeftIcon]="false">Save `draft` $&#123;name&#125;</button>', {}],
   ['icon', 'icon-button', '<button indiceIconButton label="Open administration" variant="teal-filled" size="xx-large" caption="Admin"></button>', {}],
@@ -26,7 +26,18 @@ const examples = [
   ['field-email', 'field', '<indice-field label="Email" type="email" [formControl]="fieldControl" [required]="true" [error]="fieldError" />', { required: true, type: 'email', disabled: true }],
   ['field-readonly', 'field', '<indice-field label="Value" [formControl]="fieldControl" [readOnly]="true" [error]="fieldError" />', { readOnly: true }],
   ['field-password', 'field', '<indice-field label="Password" type="password" [formControl]="fieldControl" [required]="true" [error]="fieldError" />', { required: true, type: 'password' }],
+  ['field-prefilled', 'field', '<indice-field label="Value" layout="horizontal" [formControl]="fieldControl" [readOnly]="true" [error]="fieldError" />', { readOnly: true, initialValue: 'Example "quoted" value' }],
+  ['field-error', 'field', '<indice-field label="Value" [formControl]="fieldControl" [invalid]="true" error="Example error" />', { required: true, initialValue: 'Input field text error' }],
 ];
+for (const [name, component, settings] of [
+  ['json-button', 'button', { label: 'Save <draft> {{value}} `${name}`', variant: 'delete-outline', showLeftIcon: false }],
+  ['json-icon', 'icon-button', { label: 'Open "Team"', variant: 'teal-filled', size: 'xx-large', caption: 'Team' }],
+  ['json-social', 'social-button', { provider: 'apple', disabled: true }],
+  ['json-field', 'field', { label: 'Work email', name: 'email', type: 'email', layout: 'horizontal', required: true, disabled: true, initialValue: 'demo@example.com', autocomplete: 'email', maxLength: 80 }],
+]) {
+  const usage = buildConfiguredUsage(component, settings);
+  examples.push([name, component, usage.markup, usage.configuration]);
+}
 const files = [];
 for (const [name, component, markup, configuration] of examples) {
   const filename = path.join(sources, `${name}.ts`);

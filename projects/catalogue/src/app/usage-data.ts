@@ -1,5 +1,18 @@
 export type UsageComponent = 'button' | 'icon-button' | 'social-button' | 'field';
-export interface UsageConfiguration { required?: boolean; readOnly?: boolean; disabled?: boolean; type?: string; }
+export interface UsageConfiguration { required?: boolean; readOnly?: boolean; disabled?: boolean; type?: string; initialValue?: string; }
+export type UsageSettings = Record<string, string | boolean | number | null>;
+export const USAGE_SETTINGS: Record<UsageComponent, UsageSettings> = {
+  button: { label: 'Button', variant: 'primary-filled', type: 'button', showLeftIcon: true, showRightIcon: true, disabled: false },
+  'icon-button': { label: 'Open administration', variant: 'black-filled', size: 'small', caption: 'Admin', type: 'button', disabled: false },
+  'social-button': { provider: 'windows', type: 'button', disabled: false },
+  field: { label: 'Label text', layout: 'vertical', type: 'text', placeholder: 'Input field text default', initialValue: '', required: false, readOnly: false, disabled: false, showLabel: true, showIcon: true, info: '', invalid: false, error: '', showErrorMessage: true, actionLabel: 'View value', name: null, autocomplete: 'off', maxLength: null },
+};
+const SETTING_CHOICES: Partial<Record<UsageComponent, Record<string, string[]>>> = {
+  button: { variant: ['primary-filled', 'secondary-outline', 'primary-clear', 'secondary-filled', 'secondary-clear', 'delete-clear', 'delete-outline'] },
+  'icon-button': { variant: ['black-filled', 'teal-filled', 'black-outline', 'grey-fill'], size: ['small', 'medium', 'large', 'xx-large'] },
+  'social-button': { provider: ['windows', 'google', 'facebook', 'apple'] },
+  field: { layout: ['vertical', 'horizontal'], type: ['text', 'email', 'password', 'tel', 'url', 'search'] },
+};
 export interface ApiEntry { name: string; type: string; default: string; description: string; }
 interface UsageDefinition { title: string; symbol: string; selector: string; inputs: ApiEntry[]; outputs: ApiEntry[]; accessibility: string[]; notes: string[]; }
 
@@ -78,11 +91,73 @@ export function usageMarkup(component: UsageComponent, markup: string): string {
   return component === 'field' ? markup.replace('[error]="fieldError"', '[error]="fieldError()"') : markup;
 }
 
-export function buildUsageExample(component: UsageComponent, markup: string, configuration: UsageConfiguration = {}): string {
+export function buildUsageParts(component: UsageComponent, markup: string, configuration: UsageConfiguration = {}) {
   const definition = USAGE[component];
-  const template = usageMarkup(component, markup).replaceAll('\\', '\\\\').replaceAll('`', '\\`').replaceAll('${', '\\${');
+  const template = usageMarkup(component, markup);
   const validators = configuration.readOnly ? [] : [...(configuration.required ? ['Validators.required'] : []), ...(configuration.type === 'email' ? ['Validators.email'] : [])];
   const formImports = component === 'field' ? `\nimport { toSignal } from '@angular/core/rxjs-interop';\nimport { FormControl, ReactiveFormsModule${validators.length ? ', Validators' : ''} } from '@angular/forms';` : '';
-  const formBody = component === 'field' ? `\n  readonly fieldControl = new FormControl(\n    { value: '', disabled: ${!!configuration.disabled} },\n    { nonNullable: true, validators: [${validators.join(', ')}] },\n  );\n  private readonly fieldEvents = toSignal(this.fieldControl.events, { initialValue: null });\n  readonly fieldError = computed(() => {\n    this.fieldEvents();\n    if (!this.fieldControl.touched) return '';\n    if (this.fieldControl.hasError('required')) return 'This field is required.';\n    if (this.fieldControl.hasError('email')) return 'Enter a valid email address.';\n    return '';\n  });\n` : '';
-  return `import { Component${component === 'field' ? ', computed' : ''} } from '@angular/core';${formImports}\nimport { ${definition.symbol} } from 'indice-ui';\n\n@Component({\n  selector: 'app-component-example',\n  standalone: true,\n  imports: [${definition.symbol}${component === 'field' ? ', ReactiveFormsModule' : ''}],\n  template: \`\n${template.split('\n').map(line => '    ' + line).join('\n')}\n  \`,\n})\nexport class ComponentExample {${formBody}}\n`;
+  const formBody = component === 'field' ? `\n  readonly fieldControl = new FormControl(\n    { value: ${JSON.stringify(configuration.initialValue ?? '')}, disabled: ${!!configuration.disabled} },\n    { nonNullable: true, validators: [${validators.join(', ')}] },\n  );\n  private readonly fieldEvents = toSignal(this.fieldControl.events, { initialValue: null });\n  readonly fieldError = computed(() => {\n    this.fieldEvents();\n    if (!this.fieldControl.touched) return '';\n    if (this.fieldControl.hasError('required')) return 'This field is required.';\n    if (this.fieldControl.hasError('email')) return 'Enter a valid email address.';\n    return '';\n  });\n` : '';
+  return {
+    template,
+    imports: `import { Component${component === 'field' ? ', computed' : ''} } from '@angular/core';${formImports}\nimport { ${definition.symbol} } from 'indice-ui';`,
+    componentImports: `imports: [${definition.symbol}${component === 'field' ? ', ReactiveFormsModule' : ''}],`,
+    setup: formBody.replace(/^  /gm, '').trim(),
+  };
+}
+
+export function buildUsageExample(component: UsageComponent, markup: string, configuration: UsageConfiguration = {}): string {
+  const parts = buildUsageParts(component, markup, configuration);
+  const template = parts.template.replaceAll('\\', '\\\\').replaceAll('`', '\\`').replaceAll('${', '\\${');
+  const body = parts.setup ? '\n' + parts.setup.split('\n').map(line => '  ' + line).join('\n') + '\n' : '';
+  return `${parts.imports}\n\n@Component({\n  selector: 'app-component-example',\n  standalone: true,\n  ${parts.componentImports}\n  template: \`\n${template.split('\n').map(line => '    ' + line).join('\n')}\n  \`,\n})\nexport class ComponentExample {${body}}\n`;
+}
+
+export function parseUsageSettings(component: UsageComponent, source: string): UsageSettings {
+  let parsed: unknown;
+  try { parsed = JSON.parse(source); }
+  catch { throw new Error('Enter valid JSON with double-quoted property names and no trailing commas.'); }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Configuration must be a JSON object.');
+  const defaults = USAGE_SETTINGS[component];
+  for (const [key, value] of Object.entries(parsed)) {
+    if (!Object.hasOwn(defaults, key)) throw new Error(`Unsupported property: ${key}.`);
+    if (key === 'maxLength') {
+      if (value !== null && (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0)) throw new Error('maxLength must be a non-negative whole number or null.');
+    } else if (key === 'name') {
+      if (value !== null && typeof value !== 'string') throw new Error('name must be a string or null.');
+    } else if (typeof value !== typeof defaults[key]) {
+      throw new Error(`${key} must be a ${typeof defaults[key]}.`);
+    }
+    if (typeof value === 'string' && value.length > 10000) throw new Error(`${key} must be 10,000 characters or fewer.`);
+    const choices = key === 'type' && component !== 'field' ? ['button', 'submit', 'reset'] : SETTING_CHOICES[component]?.[key];
+    if (choices && !choices.includes(value as string)) throw new Error(`${key} must be one of: ${choices.join(', ')}.`);
+  }
+  const settings: UsageSettings = { ...defaults, ...parsed };
+  if ('label' in settings && !String(settings['label']).trim()) throw new Error('label must not be empty.');
+  return settings;
+}
+
+export function buildConfiguredUsage(component: UsageComponent, options: UsageSettings) {
+  const settings = parseUsageSettings(component, JSON.stringify(options));
+  const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('{', '&#123;').replaceAll('}', '&#125;');
+  const attributes: string[] = [];
+  for (const [key, value] of Object.entries(settings)) {
+    if (value === null || key === 'initialValue' || (key === 'label' && component === 'button') || (key === 'disabled' && component === 'field')) continue;
+    if (key === 'error' && value === '') { attributes.push('[error]="fieldError"'); continue; }
+    attributes.push(typeof value === 'string'
+      ? value.includes('{{') ? `[${key}]="${escape(JSON.stringify(value))}"` : `${key}="${escape(value)}"`
+      : `[${key}]="${value}"`);
+  }
+  const directive = component === 'button' ? 'indiceButton' : component === 'icon-button' ? 'indiceIconButton' : 'indiceSocialButton';
+  const label = String(settings['label'] ?? '');
+  const content = /[{}@]/.test(label)
+    ? `{{ ${JSON.stringify(label).replaceAll('&', '\\u0026').replaceAll('<', '\\u003c').replaceAll('>', '\\u003e')} }}`
+    : escape(label);
+  const markup = component === 'field'
+    ? `<indice-field\n  [formControl]="fieldControl"\n  ${attributes.join('\n  ')}\n/>`
+    : `<button ${directive}\n  ${attributes.join('\n  ')}\n>${component === 'button' ? content : ''}</button>`;
+  const configuration: UsageConfiguration = component === 'field' ? {
+    required: settings['required'] === true, readOnly: settings['readOnly'] === true, disabled: settings['disabled'] === true,
+    type: String(settings['type']), initialValue: String(settings['initialValue']),
+  } : {};
+  return { markup, configuration };
 }

@@ -15,6 +15,7 @@ export class ButtonCatalogue {
   readonly view = signal<'states' | 'playground'>('states');
   readonly query = signal('');
   readonly variant = signal<ButtonVariant>('primary-filled');
+  readonly hasSelection = signal(false);
   readonly label = signal('Button');
   readonly leftIcon = signal(true);
   readonly rightIcon = signal(true);
@@ -37,7 +38,10 @@ export class ButtonCatalogue {
   });
 
   setVariant(value: string) {
-    if (this.variants.some(variant => variant.id === value)) this.variant.set(value as ButtonVariant);
+    if (this.variants.some(variant => variant.id === value)) {
+      this.variant.set(value as ButtonVariant);
+      this.hasSelection.set(true);
+    }
   }
 
   onTabKey(event: KeyboardEvent) {

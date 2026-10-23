@@ -1,7 +1,6 @@
 <a class="skip-link" href="#main">Skip to content</a>
 <aside class="sidebar" [class.open]="menuOpen()" aria-label="Catalogue navigation">
   <a class="brand" href="/" aria-label="Indice home"><img src="assets/INDICE-logo-text-only.svg" alt="Indice" width="160" height="32" /></a>
-  <div class="sidebar-label">DESIGN SYSTEM <span>0.1</span></div>
   <div class="chapter"><app-icon name="layers" /> Foundations</div>
   <nav>
     @for (item of categories; track item.id) {
@@ -23,15 +22,32 @@
       <div class="nav-children"><button type="button" (click)="select('fields')" [class.active]="category() === 'fields'" [attr.aria-current]="category() === 'fields' ? 'page' : null"><span>Input Field</span><span class="nav-count">11</span></button></div>
     </details>
   </nav>
-  <div class="sidebar-bottom"><span class="status-dot"></span> In progress <span class="edition">{{ isComponent() ? '02 / Components' : '01 / Foundations' }}</span></div>
+  <div class="sidebar-bottom"><a class="source-link" href="tokens/primitive.json" download="indice-primitives.json" title="Download source tokens" aria-label="Download source tokens"><app-icon name="download" /><span>Source JSON</span></a></div>
 </aside>
 @if (menuOpen()) { <button class="scrim" aria-label="Close navigation" (click)="menuOpen.set(false)"></button> }
 <div class="workspace">
   <header class="topbar">
     <button class="icon-button mobile-menu" type="button" title="Toggle navigation" aria-label="Toggle navigation" [attr.aria-expanded]="menuOpen()" (click)="menuOpen.set(!menuOpen())"><app-icon [name]="menuOpen() ? 'close' : 'menu'" /></button>
-    <div class="breadcrumb">Library <app-icon name="chevron" /> <span>{{ isComponent() ? 'Components' : 'Foundations' }}</span></div>
-    <a class="source-link" href="tokens/primitive.json" download="indice-primitives.json" title="Download source tokens"><app-icon name="download" /><span>Source JSON</span></a>
+    <div class="system-context"><div class="system-name">Design System <span class="system-version">0.0</span></div><div class="theme-context"><span>Themed for Company A</span><button #themeTrigger type="button" class="source-link theme-change" (click)="openThemeChooser(themeChooser)"><app-icon name="change" /><span>Change theme</span></button></div></div>
+    <div class="topbar-actions">
+      <div class="role-switcher" role="group" aria-labelledby="demo-role-label">
+        <span id="demo-role-label" class="role-label">Demo role</span>
+        <div class="role-options">
+          <label class="role-choice"><input type="radio" name="demo-role" value="designer" [checked]="role() === 'designer'" (change)="setRole('designer')" /><span><app-icon name="layers" />Designer</span></label>
+          <label class="role-choice"><input type="radio" name="demo-role" value="developer" [checked]="role() === 'developer'" (change)="setRole('developer')" /><span><app-icon name="code" />Developer</span></label>
+        </div>
+      </div>
+    </div>
   </header>
+  <dialog #themeChooser class="theme-dialog" aria-labelledby="theme-chooser-title" (click)="onThemeBackdrop($event)" (keydown.escape)="themeChooser.close()" (close)="themeTrigger.focus()">
+    <header class="theme-dialog-header"><h2 id="theme-chooser-title">Change theme</h2><button type="button" class="icon-button" aria-label="Close theme chooser" title="Close theme chooser" (click)="themeChooser.close()"><app-icon name="close" /></button></header>
+    <div class="theme-options" role="group" aria-label="Available themes">
+      @for (theme of themePreviews; track theme.id) {
+        <label class="theme-option" [class.is-selected]="previewThemeId() === theme.id"><input type="radio" name="project-theme" [value]="theme.id" [checked]="previewThemeId() === theme.id" (change)="selectThemePreview(theme.id)" [attr.aria-label]="theme.name + ', ' + theme.modes + ', ' + theme.platform + (theme.sample ? ', sample preview' : ', current theme')" /><img class="theme-preview" [src]="theme.image" alt="" width="640" height="400" /><span class="theme-details"><span class="theme-name">{{ theme.name }}</span><span class="theme-metadata">{{ theme.modes }} <span aria-hidden="true">/</span> {{ theme.platform }}</span><span class="theme-status">{{ theme.sample ? 'Sample' : 'Current theme' }}</span></span></label>
+      }
+    </div>
+    <footer class="theme-dialog-actions"><span role="status">{{ selectedThemePreview().name }}<small>{{ selectedThemePreview().sample ? 'Sample preview' : 'Current theme' }}</small></span><button type="button" (click)="themeChooser.close()">Done</button></footer>
+  </dialog>
   <main id="main" tabindex="-1">
     <div class="page-heading"><div><div class="eyebrow">INDICE / {{ isComponent() ? 'COMPONENTS' : 'FOUNDATIONS' }}</div><h1>{{ title() }}<span class="heading-dot">.</span></h1></div><span class="total">@if (category() === 'buttons') { <strong>7</strong> variants / <strong>28</strong> states } @else if (category() === 'icon-buttons') { <strong>4</strong> variants / <strong>4</strong> sizes / <strong>64</strong> states } @else if (category() === 'social-buttons') { <strong>4</strong> providers / <strong>12</strong> states } @else if (category() === 'fields') { <strong>11</strong> variants / <strong>2</strong> layouts } @else { <strong>{{ tokens.length }}</strong> primitive tokens }</span></div>
     @if (category() === 'buttons') {

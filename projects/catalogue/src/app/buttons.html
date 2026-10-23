@@ -3,17 +3,17 @@
     <button type="button" role="tab" id="states-tab" aria-controls="states-panel" [attr.aria-selected]="view() === 'states'" [attr.tabindex]="view() === 'states' ? 0 : -1" [class.selected]="view() === 'states'" (click)="view.set('states')">States</button>
     <button type="button" role="tab" id="playground-tab" aria-controls="playground-panel" [attr.aria-selected]="view() === 'playground'" [attr.tabindex]="view() === 'playground' ? 0 : -1" [class.selected]="view() === 'playground'" (click)="view.set('playground')">Playground</button>
   </div>
-  <div class="toolbar-actions"><a href="https://www.figma.com/design/9kubN4VqWMZ6nLyb1RMhWM/INDICE-IAM-%7C-Design-System?node-id=2038-786" target="_blank" rel="noopener noreferrer" title="Open button design in Figma">Figma <app-icon name="layers" /></a><app-use-it component="button" [markup]="code()" /></div>
+  <div class="toolbar-actions"><a href="https://www.figma.com/design/9kubN4VqWMZ6nLyb1RMhWM/INDICE-IAM-%7C-Design-System?node-id=2038-786" target="_blank" rel="noopener noreferrer" title="Open button design in Figma">Figma <app-icon name="layers" /></a><app-use-it component="button" [markup]="code()" [disabled]="!hasSelection()" /></div>
 </div>
 @if (view() === 'states') {
   <section id="states-panel" role="tabpanel" aria-labelledby="states-tab">
     <label class="variant-search"><app-icon name="search" /><input type="search" aria-label="Search button variants" placeholder="Search button variants..." [value]="query()" (input)="query.set($any($event.target).value)" /></label>
-    <div class="specimen-grid">
+    <div class="specimen-grid" role="group" aria-label="Button variant">
       @for (variant of matches(); track variant.id) {
-        <section class="variant-section" [attr.aria-label]="variant.id">
-          <h2>{{ variant.kind }} <span>{{ variant.appearance }}</span></h2>
+        <section class="variant-section" [class.is-selected]="hasSelection() && this.variant() === variant.id" [attr.aria-label]="variant.id">
+          <h2><label class="variant-choice"><input type="radio" name="button-variant" [value]="variant.id" [checked]="hasSelection() && this.variant() === variant.id" (change)="setVariant(variant.id)" /><span>{{ variant.kind }}<span class="variant-appearance">{{ variant.appearance }}</span></span></label></h2>
           @for (state of states; track state) {
-            <div class="specimen"><span class="state-label">{{ state }}</span><button indiceButton [variant]="variant.id" [attr.data-preview-state]="state" [disabled]="state === 'inactive'" [attr.aria-label]="variant.id + ' ' + state">Button</button></div>
+            <div class="specimen"><span class="state-label">{{ state }}</span><button indiceButton [variant]="variant.id" [attr.data-preview-state]="state" [disabled]="state === 'inactive'" tabindex="-1" [attr.aria-label]="variant.id + ' ' + state">Button</button></div>
           }
         </section>
       } @empty { <div class="empty"><h2>No matching variants</h2><button type="button" (click)="query.set('')">Clear search</button></div> }
@@ -22,7 +22,7 @@
 } @else {
   <section id="playground-panel" role="tabpanel" aria-labelledby="playground-tab">
     <div class="playground-controls">
-      <label>Variant<select aria-label="Button variant" [value]="variant()" (change)="setVariant($any($event.target).value)">@for (item of variants; track item.id) { <option [value]="item.id">{{ item.kind }} / {{ item.appearance }}</option> }</select></label>
+      <label>Variant<select aria-label="Button variant" (change)="setVariant($any($event.target).value)"><option value="" disabled [selected]="!hasSelection()">Select variant</option>@for (item of variants; track item.id) { <option [value]="item.id" [selected]="hasSelection() && variant() === item.id">{{ item.kind }} / {{ item.appearance }}</option> }</select></label>
       <label>Label<input type="text" aria-label="Button label" maxlength="80" [value]="label()" (input)="label.set($any($event.target).value)" /></label>
       <div class="toggle-controls"><label><input type="checkbox" [checked]="leftIcon()" (change)="leftIcon.set($any($event.target).checked)" />Left icon</label><label><input type="checkbox" [checked]="rightIcon()" (change)="rightIcon.set($any($event.target).checked)" />Right icon</label><label><input type="checkbox" [checked]="disabled()" (change)="disabled.set($any($event.target).checked)" />Disabled</label></div>
     </div>

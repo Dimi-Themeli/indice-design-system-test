@@ -29,6 +29,11 @@ export class FieldCatalogue {
   readonly examples = FIELD_EXAMPLES;
   readonly view = signal<'states' | 'playground'>('states');
   readonly query = signal('');
+  readonly selectedExample = signal('');
+  readonly hasSelection = computed(() => !!this.selectedExample());
+  readonly initialValue = computed(() => this.examples.find(example => example.id === this.selectedExample())?.value ?? '');
+  readonly presetInvalid = signal(false);
+  readonly presetError = signal('');
   readonly matches = computed(() => this.examples.filter(example => example.id.replaceAll('-', ' ').includes(this.query().trim().toLowerCase().replaceAll('-', ' '))));
   readonly layout = signal<FieldLayout>('vertical');
   readonly type = signal<FieldType>('text');
@@ -49,12 +54,35 @@ export class FieldCatalogue {
   readonly result = signal('');
   readonly error = computed(() => {
     this.formEvents();
+    if (this.presetError()) return this.presetError();
     if (!this.submitted() && !this.control.touched) return '';
     if (this.control.hasError('required')) return 'This field is required.';
     if (this.control.hasError('email')) return 'Enter a valid email address.';
     return '';
   });
-  readonly code = computed(() => `<indice-field\n  label="${this.escape(this.label() || 'Field preview')}"\n  [formControl]="fieldControl"\n  layout="${this.layout()}"\n  type="${this.type()}"\n  placeholder="${this.escape(this.placeholder())}"\n  [required]="${this.required()}"\n  [readOnly]="${this.readOnly()}"\n  [showLabel]="${this.showLabel()}"\n  [showIcon]="${this.showIcon()}"${this.showInfo() ? '\n  info="Field information"' : ''}\n  [error]="fieldError"\n  [showErrorMessage]="${this.showErrorMessage()}"\n/>`);
+  readonly code = computed(() => `<indice-field\n  label="${this.escape(this.label() || 'Field preview')}"\n  [formControl]="fieldControl"\n  layout="${this.layout()}"\n  type="${this.type()}"\n  placeholder="${this.escape(this.placeholder())}"\n  [required]="${this.required()}"\n  [readOnly]="${this.readOnly()}"\n  [showLabel]="${this.showLabel()}"\n  [showIcon]="${this.showIcon()}"${this.showInfo() ? '\n  info="Field information"' : ''}${this.presetInvalid() ? '\n  [invalid]="true"' : ''}\n  ${this.presetError() ? `error="${this.escape(this.presetError())}"` : '[error]="fieldError"'}\n  [showErrorMessage]="${this.showErrorMessage()}"\n/>`);
+
+  selectExample(id: string) {
+    const example = this.examples.find(example => example.id === id);
+    if (!example) return;
+    this.selectedExample.set(id);
+    this.layout.set(example.layout);
+    this.type.set('text');
+    this.label.set('Label text');
+    this.placeholder.set('Input field text default');
+    this.required.set(true);
+    this.readOnly.set(example.kind === 'view');
+    this.showLabel.set(true);
+    this.showIcon.set(true);
+    this.showInfo.set(true);
+    this.showErrorMessage.set(true);
+    this.presetInvalid.set(example.state === 'error');
+    this.presetError.set(example.state === 'error' && example.kind === 'filled' ? 'Lorem ipsum dolor sit amet, consectetur adipiscing elit' : '');
+    this.submitted.set(false);
+    this.result.set('');
+    this.control.reset({ value: example.value, disabled: example.state === 'disabled' });
+    this.updateValidators();
+  }
 
   setLayout(layout: FieldLayout) { this.layout.set(layout); }
 
@@ -75,12 +103,16 @@ export class FieldCatalogue {
   }
 
   validate() {
+    this.presetInvalid.set(false);
+    this.presetError.set('');
     this.submitted.set(true);
     this.control.markAsTouched();
     this.result.set(this.control.disabled ? 'Field is disabled.' : this.control.valid ? 'Value submitted.' : 'Check the field.');
   }
 
   reset() {
+    this.presetInvalid.set(false);
+    this.presetError.set('');
     this.submitted.set(false);
     this.result.set('');
     this.control.reset();

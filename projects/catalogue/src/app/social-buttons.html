@@ -3,17 +3,17 @@
     <button type="button" role="tab" id="social-states-tab" aria-controls="social-states-panel" [attr.aria-selected]="view() === 'states'" [attr.tabindex]="view() === 'states' ? 0 : -1" [class.selected]="view() === 'states'" (click)="view.set('states')">States</button>
     <button type="button" role="tab" id="social-playground-tab" aria-controls="social-playground-panel" [attr.aria-selected]="view() === 'playground'" [attr.tabindex]="view() === 'playground' ? 0 : -1" [class.selected]="view() === 'playground'" (click)="view.set('playground')">Playground</button>
   </div>
-  <div class="toolbar-actions"><a href="https://www.figma.com/design/9kubN4VqWMZ6nLyb1RMhWM/INDICE-IAM-%7C-Design-System?node-id=2284-102" target="_blank" rel="noopener noreferrer" title="Open social button design in Figma">Figma <app-icon name="layers" /></a><app-use-it component="social-button" [markup]="code()" /></div>
+  <div class="toolbar-actions"><a href="https://www.figma.com/design/9kubN4VqWMZ6nLyb1RMhWM/INDICE-IAM-%7C-Design-System?node-id=2284-102" target="_blank" rel="noopener noreferrer" title="Open social button design in Figma">Figma <app-icon name="layers" /></a><app-use-it component="social-button" [markup]="code()" [disabled]="!hasSelection()" /></div>
 </div>
 @if (view() === 'states') {
   <section id="social-states-panel" role="tabpanel" aria-labelledby="social-states-tab">
     <label class="variant-search"><app-icon name="search" /><input type="search" aria-label="Search social providers" placeholder="Search social providers..." [value]="query()" (input)="query.set($any($event.target).value)" /></label>
-    <div class="social-grid">
+    <div class="social-grid" role="group" aria-label="Social button provider">
       @for (provider of matches(); track provider.id) {
-        <section class="variant-section" [attr.aria-label]="provider.name">
-          <h2>{{ provider.name }}</h2>
+        <section class="variant-section" [class.is-selected]="hasSelection() && this.provider() === provider.id" [attr.aria-label]="provider.name">
+          <h2><label class="variant-choice"><input type="radio" name="social-button-provider" [value]="provider.id" [checked]="hasSelection() && this.provider() === provider.id" (change)="setProvider(provider.id)" /><span>{{ provider.name }}</span></label></h2>
           @for (state of states; track state) {
-            <div class="specimen social-specimen"><span class="state-label">{{ state }}</span><button indiceSocialButton [provider]="provider.id" [attr.data-preview-state]="state"></button></div>
+            <div class="specimen social-specimen"><span class="state-label">{{ state }}</span><button indiceSocialButton tabindex="-1" [provider]="provider.id" [attr.data-preview-state]="state"></button></div>
           }
         </section>
       } @empty { <div class="empty"><h2>No matching providers</h2><button type="button" (click)="query.set('')">Clear search</button></div> }
@@ -22,7 +22,7 @@
 } @else {
   <section id="social-playground-panel" role="tabpanel" aria-labelledby="social-playground-tab">
     <div class="playground-controls">
-      <label>Provider<select aria-label="Social provider" [value]="provider()" (change)="setProvider($any($event.target).value)">@for (item of providers; track item.id) { <option [value]="item.id">{{ item.name }}</option> }</select></label>
+      <label>Provider<select aria-label="Social provider" (change)="setProvider($any($event.target).value)"><option value="" disabled [selected]="!hasSelection()">Select provider</option>@for (item of providers; track item.id) { <option [value]="item.id" [selected]="hasSelection() && provider() === item.id">{{ item.name }}</option> }</select></label>
       <div class="toggle-controls"><label><input type="checkbox" [checked]="disabled()" (change)="disabled.set($any($event.target).checked)" />Disabled</label></div>
     </div>
     <div class="live-preview"><button indiceSocialButton [provider]="provider()" [disabled]="disabled()" (click)="activations.set(activations() + 1)"></button></div>

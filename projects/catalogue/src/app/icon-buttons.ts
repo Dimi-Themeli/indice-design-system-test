@@ -16,6 +16,7 @@ export class IconButtonCatalogue {
   readonly view = signal<'states' | 'playground'>('states');
   readonly query = signal('');
   readonly variant = signal<IconButtonVariant>('black-filled');
+  readonly hasSelection = signal(false);
   readonly size = signal<IconButtonSize>('small');
   readonly label = signal('Open administration');
   readonly caption = signal('Admin');
@@ -35,7 +36,10 @@ export class IconButtonCatalogue {
   });
 
   setVariant(value: string) {
-    if (this.variants.some(variant => variant === value)) this.variant.set(value as IconButtonVariant);
+    if (this.variants.some(variant => variant === value)) {
+      this.variant.set(value as IconButtonVariant);
+      this.hasSelection.set(true);
+    }
   }
 
   setSize(value: string) {
