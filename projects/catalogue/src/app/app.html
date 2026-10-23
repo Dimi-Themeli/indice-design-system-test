@@ -1,14 +1,25 @@
 <a class="skip-link" href="#main">Skip to content</a>
-<div class="demo-ribbon" aria-label="Demo workspace"><span class="ribbon-title">INDICE / DEMO</span><div class="role-switcher" role="group" aria-labelledby="demo-role-label"><span id="demo-role-label" class="role-label">Demo role</span><div class="role-options"><label class="role-choice"><input type="radio" name="demo-role" value="designer" [checked]="role() === 'designer'" (change)="setRole('designer')" /><span>Designer</span></label><label class="role-choice"><input type="radio" name="demo-role" value="developer" [checked]="role() === 'developer'" (change)="setRole('developer')" /><span>Developer</span></label></div></div></div>
-<aside class="sidebar" [class.open]="menuOpen()" aria-label="Catalogue navigation">
+<dialog #welcome class="welcome-dialog" aria-labelledby="welcome-title" aria-describedby="welcome-intro" (keydown.escape)="welcome.close()" (close)="role() === 'designer' ? designerRole.focus() : developerRole.focus()">
+  <div class="welcome-brand"><img src="assets/INDICE-logo-text-only.svg" alt="Indice" width="160" height="32" /><button type="button" class="welcome-close" aria-label="Close welcome" title="Close welcome" (click)="welcome.close()"><app-icon name="close" /></button></div>
+  <h2 id="welcome-title" tabindex="-1" autofocus>Welcome.... you :)</h2>
+  <p id="welcome-intro">One shared design system, from design to development. Explore the component library or create a branded project, together.</p>
+  <div class="welcome-roles" role="group" aria-label="Choose your role"><button type="button" (click)="setRole('developer'); welcome.close()"><app-icon name="code" />I am a developer</button><button type="button" (click)="setRole('designer'); welcome.close()"><app-icon name="layers" />I am a designer</button></div>
+  <p class="welcome-signoff">.... and always an Indicer! &lt;3</p>
+</dialog>
+<div class="demo-ribbon" aria-label="Demo workspace"><span class="ribbon-title">INDICE / DEMO</span><div class="role-switcher" role="group" aria-labelledby="demo-role-label"><span id="demo-role-label" class="role-label">Demo role</span><div class="role-options"><label class="role-choice"><input #designerRole type="radio" name="demo-role" value="designer" [checked]="role() === 'designer'" (change)="setRole('designer')" /><span>Designer</span></label><label class="role-choice"><input #developerRole type="radio" name="demo-role" value="developer" [checked]="role() === 'developer'" (change)="setRole('developer')" /><span>Developer</span></label></div></div></div>
+<aside #sidebar class="sidebar" [class.open]="menuOpen()" aria-label="Catalogue navigation">
   <a class="brand" href="/" aria-label="Indice home"><img src="assets/INDICE-logo-text-only.svg" alt="Indice" width="160" height="32" /></a>
-  <div class="chapter"><app-icon name="layers" /> Foundations</div>
-  <nav>
+  <div class="sidebar-tools"><span>Library</span><button type="button" class="icon-button" aria-label="Collapse all categories" title="Collapse all categories" (click)="collapseAll(sidebar)"><app-icon name="collapse" /></button></div>
+  <details class="nav-section" open>
+  <summary class="chapter"><app-icon name="layers" /> Foundations <app-icon class="chapter-chevron" name="chevron" /></summary>
+  <nav aria-label="Foundations">
     @for (item of categories; track item.id) {
       <button type="button" (click)="select(item.id)" [class.active]="category() === item.id && !query()" [attr.aria-current]="category() === item.id && !query() ? 'page' : null"><span class="nav-number">{{ item.number }}</span><span>{{ item.title }}</span><span class="nav-count">{{ count(item.id) }}</span></button>
     }
   </nav>
-  <div class="chapter components-chapter"><app-icon name="layers" /> Components</div>
+  </details>
+  <details class="nav-section components-chapter" open>
+  <summary class="chapter"><app-icon name="layers" /> Components <app-icon class="chapter-chevron" name="chevron" /></summary>
   <nav aria-label="Components">
     <details class="nav-group" open>
       <summary><span class="nav-number">01</span><span>Buttons</span><app-icon name="chevron" /></summary>
@@ -23,34 +34,41 @@
       <div class="nav-children"><button type="button" (click)="select('fields')" [class.active]="category() === 'fields'" [attr.aria-current]="category() === 'fields' ? 'page' : null"><span>Input Field</span><span class="nav-count">11</span></button></div>
     </details>
   </nav>
+  </details>
   <div class="sidebar-bottom"><a class="source-link" href="tokens/primitive.json" download="indice-primitives.json" title="Download source tokens" aria-label="Download source tokens"><app-icon name="download" /><span>Source JSON</span></a></div>
 </aside>
 @if (menuOpen()) { <button class="scrim" aria-label="Close navigation" (click)="menuOpen.set(false)"></button> }
 <div class="workspace">
   <header class="topbar">
     <button class="icon-button mobile-menu" type="button" title="Toggle navigation" aria-label="Toggle navigation" [attr.aria-expanded]="menuOpen()" (click)="menuOpen.set(!menuOpen())"><app-icon [name]="menuOpen() ? 'close' : 'menu'" /></button>
-    <div class="system-context"><div class="system-name">Design System <span class="system-version">0.0</span></div><div class="theme-context"><span>Themed for Company A</span><button #themeTrigger type="button" class="source-link theme-change" (click)="openThemeChooser(themeChooser)"><app-icon name="change" /><span>Change theme</span></button></div></div>
-    <div class="topbar-actions">
-      <button #projectTrigger type="button" class="add-project" [disabled]="role() !== 'designer'" [title]="role() === 'designer' ? 'Add project' : 'Switch to Designer to add a project'" (click)="openProjectWizard(projectWizard)"><app-icon name="add" />Add project</button>
+    <div class="system-context"><div class="system-name">Design System <span class="system-version">0.0</span></div><div class="theme-context"><span>Project: {{ currentProject()?.name ?? 'Base library' }}</span><button #themeTrigger type="button" class="source-link theme-change" (click)="openThemeChooser(themeChooser)"><app-icon name="change" /><span>Change project</span></button></div></div>
+    <div class="topbar-actions" [style.display]="role() === 'designer' ? null : 'none'">
+      <button type="button" class="add-project" [disabled]="role() !== 'designer'" title="Add project" (click)="showProjects('create')"><app-icon name="add" />Add project</button>
+      <button #manageTrigger type="button" class="icon-button manage-projects" aria-label="Manage projects" title="Manage projects" (click)="showProjects('manage')"><app-icon name="manage" /></button>
     </div>
   </header>
-  <dialog #projectWizard class="theme-dialog project-dialog" aria-labelledby="project-wizard-title" (click)="onThemeBackdrop($event)" (keydown.escape)="projectWizard.close()" (close)="projectTrigger.focus()">
-    <header class="theme-dialog-header"><div><span class="project-stage">DESIGNER / NEW PROJECT</span><h2 id="project-wizard-title">Add project</h2></div><button type="button" class="icon-button" aria-label="Close project wizard" title="Close project wizard" (click)="projectWizard.close()"><app-icon name="close" /></button></header>
-    <ol class="project-steps" aria-label="Proposed project setup steps">
-      @for (step of projectSetupSteps; track step.title) { <li><h3>{{ step.title }}</h3><p>{{ step.summary }}</p></li> }
-    </ol>
-    <footer class="theme-dialog-actions"><span>Draft workflow<small>Project creation is not connected yet.</small></span><button type="button" (click)="projectWizard.close()">Done</button></footer>
-  </dialog>
-  <dialog #themeChooser class="theme-dialog" aria-labelledby="theme-chooser-title" (click)="onThemeBackdrop($event)" (keydown.escape)="themeChooser.close()" (close)="themeTrigger.focus()">
-    <header class="theme-dialog-header"><h2 id="theme-chooser-title">Change theme</h2><button type="button" class="icon-button" aria-label="Close theme chooser" title="Close theme chooser" (click)="themeChooser.close()"><app-icon name="close" /></button></header>
-    <div class="theme-options" role="group" aria-label="Available themes">
-      @for (theme of themePreviews; track theme.id) {
-        <label class="theme-option" [class.is-selected]="previewThemeId() === theme.id"><input type="radio" name="project-theme" [value]="theme.id" [checked]="previewThemeId() === theme.id" (change)="selectThemePreview(theme.id)" [attr.aria-label]="theme.name + ', ' + theme.modes + ', ' + theme.platform + (theme.sample ? ', sample preview' : ', current theme')" /><img class="theme-preview" [src]="theme.image" alt="" width="640" height="400" /><span class="theme-details"><span class="theme-name">{{ theme.name }}</span><span class="theme-metadata">{{ theme.modes }} <span aria-hidden="true">/</span> {{ theme.platform }}</span><span class="theme-status">{{ theme.sample ? 'Sample' : 'Current theme' }}</span></span></label>
+  <dialog #themeChooser class="theme-dialog" aria-labelledby="theme-chooser-title" (click)="onThemeBackdrop($event)" (keydown.escape)="themeChooser.close()" (close)="view() === 'library' ? themeTrigger.focus() : mainContent.focus({ preventScroll: true })">
+    <header class="theme-dialog-header"><h2 id="theme-chooser-title">Change project</h2><button type="button" class="icon-button" aria-label="Close project chooser" title="Close project chooser" (click)="themeChooser.close()"><app-icon name="close" /></button></header>
+    @if (projectError()) { <p class="project-error" role="alert">{{ projectError() }}</p> }
+    <div class="theme-options" role="group" aria-label="Available projects">
+      @for (project of projects(); track project.id) {
+        <label class="theme-option" [class.is-selected]="previewProjectId() === project.id"><input type="radio" name="project-choice" [value]="project.id" [checked]="previewProjectId() === project.id" (change)="selectProjectPreview(project.id)" [attr.aria-label]="project.name + ', ' + project.modes + ', ' + project.platform + ', ' + project.status" />@if (project.images[0]) { <img class="theme-preview" [src]="project.images[0]" alt="" width="640" height="400" /> } @else { <div class="theme-preview theme-placeholder"><app-icon name="layers" /></div> }<span class="theme-details"><span class="theme-name">{{ project.name }}</span><span class="theme-metadata">{{ project.modes }} <span aria-hidden="true">/</span> {{ project.platform }}</span><span class="theme-status">{{ activeProjectId() === project.id ? 'Current project / ' : '' }}{{ project.status }}</span></span></label>
+      } @empty {
+        <div class="project-chooser-empty">No projects yet</div>
       }
     </div>
-    <footer class="theme-dialog-actions"><span role="status">{{ selectedThemePreview().name }}<small>{{ selectedThemePreview().sample ? 'Sample preview' : 'Current theme' }}</small></span><button type="button" (click)="themeChooser.close()">Done</button></footer>
+    <footer class="theme-dialog-actions"><span role="status">{{ selectedProjectPreview()?.name ?? 'No project selected' }}<small>{{ selectedProjectPreview()?.status === 'Draft' ? 'Draft / Base component styling' : selectedProjectPreview()?.status === 'Sample' ? 'Sample project' : 'Base theme' }}</small></span><div class="project-chooser-actions"><button type="button" class="project-text-link" (click)="themeChooser.close(); showProjects('manage')">Manage projects</button><button type="button" [disabled]="!selectedProjectPreview()" (click)="applyProject(themeChooser)">Open project</button></div></footer>
   </dialog>
-  <main id="main" tabindex="-1">
+  <dialog #deleteDialog class="theme-dialog delete-project-dialog" aria-labelledby="delete-project-title" (click)="onThemeBackdrop($event)" (keydown.escape)="deleteDialog.close()" (close)="closeProjectDeletion(manageTrigger)">
+    <header class="theme-dialog-header"><h2 id="delete-project-title">Delete project?</h2><button type="button" class="icon-button" aria-label="Close delete confirmation" title="Close delete confirmation" (click)="deleteDialog.close()"><app-icon name="close" /></button></header>
+    @if (pendingDeletion(); as project) { <p class="delete-project-message">Delete <strong>{{ project.name }}</strong> and its saved tokens and reference images from this browser? This cannot be undone.</p> }
+    @if (projectError()) { <p class="project-error" role="alert">{{ projectError() }}</p> }
+    <footer class="theme-dialog-actions"><button type="button" class="project-text-link" autofocus (click)="deleteDialog.close()">Cancel</button><button type="button" class="confirm-delete" (click)="confirmProjectDeletion(deleteDialog)"><app-icon name="trash" />Delete project</button></footer>
+  </dialog>
+  <main #mainContent id="main" tabindex="-1">
+    @if (view() !== 'library') {
+      <app-projects [page]="view() === 'create' ? 'create' : 'manage'" [projects]="projects()" [activeId]="activeProjectId()" [canEdit]="role() === 'designer'" [error]="projectError()" (create)="createProject($event)" (open)="activateProject($event)" (remove)="requestProjectDeletion($event, deleteDialog)" (navigate)="showProjects($event)" />
+    } @else {
     <div class="page-heading"><div><div class="eyebrow">INDICE / {{ isComponent() ? 'COMPONENTS' : 'FOUNDATIONS' }}</div><h1>{{ title() }}<span class="heading-dot">.</span></h1></div><span class="total">@if (category() === 'buttons') { <strong>7</strong> variants / <strong>28</strong> states } @else if (category() === 'icon-buttons') { <strong>4</strong> variants / <strong>4</strong> sizes / <strong>64</strong> states } @else if (category() === 'social-buttons') { <strong>4</strong> providers / <strong>12</strong> states } @else if (category() === 'fields') { <strong>11</strong> variants / <strong>2</strong> layouts } @else { <strong>{{ tokens.length }}</strong> primitive tokens }</span></div>
     @if (category() === 'buttons') {
       <app-button-catalogue />
@@ -88,6 +106,7 @@
     } @empty { <div class="empty"><app-icon name="search" /><h2>No matching tokens</h2><p>{{ query() }}</p><button type="button" (click)="query.set('')">Clear search</button></div> }
     }
     <footer><span>Indice Design System</span><span>{{ isComponent() ? 'Components' : 'Foundations' }} / v0.1.0</span></footer>
+    }
   </main>
 </div>
 <div class="toast" role="status" aria-live="polite" [class.visible]="notice()">@if (notice()) { <app-icon name="check" /><span>{{ notice() }}</span> }</div>

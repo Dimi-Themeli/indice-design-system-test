@@ -55,8 +55,8 @@
 
 :host([data-variant='primary-filled']) {
   --button-text-active: var(--colours-text-on-filled-button-black, var(--indice-colours-main-global-0, #fff));
-  --button-fill-active: var(--colours-surface-element-primary-default, var(--indice-colours-main-neutral-900, #201f1e));
-  --button-fill-hover: var(--colours-surface-element-primary-hover, var(--indice-colours-main-neutral-600, #6f6d68));
+  --button-fill-active: var(--colours-surface-element-primary-default, var(--indice-colours-main-global-950, #000));
+  --button-fill-hover: var(--colours-surface-element-primary-hover, var(--indice-colours-main-neutral-900, #201f1e));
   --button-fill-pressed: var(--colours-surface-element-primary-pressed, var(--indice-colours-main-neutral-950, #141312));
   --button-left-active: url('./assets/40e50.svg');
   --button-right-active: url('./assets/a8dec.svg');

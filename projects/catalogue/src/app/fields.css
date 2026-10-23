@@ -4,6 +4,8 @@
 .live-preview { padding-inline: 0; }
 .layout-control { display: flex; flex-direction: column; gap: 8px; font-size: 14px; font-weight: 600; align-items: start; }
 .form-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
-.form-actions button { border: 1px solid #d6ded4; background: white; border-radius: 4px; padding: 9px 14px; color: var(--ink); font-size: 14px; }
+.form-actions button { border: 1px solid var(--line); background: var(--surface); border-radius: 4px; padding: 9px 14px; color: var(--ink); font-size: 14px; }
+.form-actions button[type='submit'] { border-color: var(--action); background: var(--action); color: var(--surface); }
+.form-actions button[type='submit']:hover { background: var(--action-hover); }
 .form-actions .reset-control { display: grid; place-items: center; padding: 9px; }
 .form-actions > span { font-size: 12px; color: var(--muted); }

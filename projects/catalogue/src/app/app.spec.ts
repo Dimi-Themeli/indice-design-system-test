@@ -7,13 +7,208 @@ import { SocialButtonCatalogue } from './social-buttons';
 import { FieldCatalogue } from './fields';
 import { UseIt } from './use-it';
 import { buildConfiguredUsage, buildUsageExample, parseUsageSettings, USAGE } from './usage-data';
+import { BASE_PROJECTS, loadProjectState, parseTokenFile, PROJECT_STORAGE_KEY, saveProjectState, validFigmaUrl } from './project-data';
+import { Projects } from './projects';
 
 describe('App', () => {
   beforeEach(async () => {
+    localStorage.removeItem(PROJECT_STORAGE_KEY);
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     await TestBed.configureTestingModule({
       imports: [App],
     }).compileComponents();
+  });
+
+  it('opens the welcome on each new app load and lets either role enter the demo', async () => {
+    for (const role of ['developer', 'designer'] as const) {
+      const fixture = TestBed.createComponent(App);
+      await fixture.whenStable();
+      const element = fixture.nativeElement as HTMLElement;
+      const dialog = element.querySelector('.welcome-dialog') as HTMLDialogElement;
+      dialog.showModal = vi.fn(() => dialog.setAttribute('open', ''));
+      dialog.close = vi.fn(() => dialog.removeAttribute('open'));
+      fixture.componentInstance.openWelcome();
+      expect(dialog.showModal).toHaveBeenCalledOnce();
+      expect(dialog.open).toBe(true);
+      expect(dialog.querySelector('.welcome-signoff')?.textContent).toBe('.... and always an Indicer! <3');
+      const buttons = dialog.querySelectorAll<HTMLButtonElement>('.welcome-roles button');
+      buttons[role === 'developer' ? 0 : 1].click();
+      await fixture.whenStable();
+      expect(fixture.componentInstance.role()).toBe(role);
+      expect(dialog.close).toHaveBeenCalledOnce();
+      expect(dialog.open).toBe(false);
+      expect((element.querySelector('.topbar-actions') as HTMLElement).style.display).toBe(role === 'designer' ? '' : 'none');
+      const radio = element.querySelector(`input[name="demo-role"][value="${role}"]`) as HTMLInputElement;
+      const focus = vi.spyOn(radio, 'focus');
+      dialog.dispatchEvent(new Event('close'));
+      expect(focus).toHaveBeenCalledOnce();
+      fixture.destroy();
+    }
+  });
+
+  it('dismisses the welcome with Escape and the close action', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const dialog = fixture.nativeElement.querySelector('.welcome-dialog') as HTMLDialogElement;
+    dialog.close = vi.fn();
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(dialog.close).toHaveBeenCalledOnce();
+    (dialog.querySelector('.welcome-close') as HTMLButtonElement).click();
+    expect(dialog.close).toHaveBeenCalledTimes(2);
+  });
+
+  it('validates token files and optional Figma links', () => {
+    expect(parseTokenFile('{"Palette":{"primary":{"$value":"#000000","$type":"color"}}}').count).toBe(1);
+    expect(parseTokenFile('{"primary":"#000000","spacing":8}').count).toBe(2);
+    for (const source of ['{', '[]', 'null', '{}', '{"$description":"Empty"}']) expect(() => parseTokenFile(source)).toThrow();
+    expect(validFigmaUrl('')).toBe(true);
+    expect(validFigmaUrl('https://www.figma.com/design/demo/Project')).toBe(true);
+    expect(validFigmaUrl('https://figma.com.evil.example/design/demo')).toBe(false);
+    expect(validFigmaUrl('javascript:alert(1)')).toBe(false);
+  });
+
+  it('persists projects, preserves an empty list and reports corrupt or unavailable storage', () => {
+    saveProjectState(BASE_PROJECTS, 'company-b');
+    expect(loadProjectState().activeId).toBe('company-b');
+    saveProjectState([], null);
+    expect(loadProjectState().projects).toEqual([]);
+    expect(loadProjectState().activeId).toBeNull();
+    expect(loadProjectState({ getItem: () => '{' }).warning).toBeTruthy();
+    expect(() => saveProjectState([], null, { setItem: () => { throw new Error('Quota'); } })).toThrow('could not be saved');
+  });
+
+  it('creates a project with only a name and token JSON, and rejects missing or invalid required data', async () => {
+    const fixture = TestBed.createComponent(Projects);
+    fixture.componentRef.setInput('page', 'create');
+    fixture.componentRef.setInput('canEdit', true);
+    await fixture.whenStable();
+    const component = fixture.componentInstance;
+    const create = vi.fn();
+    component.create.subscribe(create);
+    component.submit();
+    expect(component.formError()).toContain('project name');
+    component.update('name', 'Demo customer');
+    component.submit();
+    expect(component.formError()).toContain('token JSON');
+    await component.selectTokenFile({ name: 'broken.json', size: 10, text: async () => '{' } as File);
+    expect(component.tokenError()).toContain('not valid JSON');
+    await component.selectTokenFile({ name: 'tokens.json', size: 100, text: async () => '{"brand":{"$value":"#123456"}}' } as File);
+    component.submit();
+    expect(create).toHaveBeenCalledOnce();
+    expect(create.mock.calls[0][0]).toMatchObject({ name: 'Demo customer', customer: '', figmaUrl: '', images: [], tokenFileName: 'tokens.json', tokenCount: 1, status: 'Draft' });
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('[required]').length).toBe(2);
+    component.update('figmaUrl', 'https://not-figma.example');
+    component.submit();
+    expect(component.formError()).toContain('HTTPS Figma');
+    expect(create).toHaveBeenCalledOnce();
+  });
+
+  it('ignores stale token file reads and prevents creation for read-only users', async () => {
+    const fixture = TestBed.createComponent(Projects);
+    await fixture.whenStable();
+    const component = fixture.componentInstance;
+    const create = vi.fn();
+    component.create.subscribe(create);
+    let finish!: (source: string) => void;
+    const slow = component.selectTokenFile({ name: 'old.json', size: 20, text: () => new Promise<string>(resolve => { finish = resolve; }) } as File);
+    await component.selectTokenFile({ name: 'new.json', size: 20, text: async () => '{"color":"#ffffff"}' } as File);
+    finish('{"old":"#000000","other":1}');
+    await slow;
+    expect(component.tokenFileName()).toBe('new.json');
+    expect(component.tokenDocument()?.count).toBe(1);
+    component.update('name', 'Read-only');
+    component.submit();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('starts a fresh project form when returning from management', async () => {
+    const fixture = TestBed.createComponent(Projects);
+    fixture.componentRef.setInput('page', 'create');
+    await fixture.whenStable();
+    fixture.componentInstance.update('name', 'Old draft');
+    await fixture.componentInstance.selectTokenFile({ name: 'tokens.json', size: 20, text: async () => '{"brand":"#000000"}' } as File);
+    fixture.componentRef.setInput('page', 'manage');
+    await fixture.whenStable();
+    fixture.componentRef.setInput('page', 'create');
+    await fixture.whenStable();
+    expect(fixture.componentInstance.draft().name).toBe('');
+    expect(fixture.componentInstance.tokenDocument()).toBeNull();
+  });
+
+  it('creates and persists a draft project, then deletes it only after confirmation', async () => {
+    const fixture = TestBed.createComponent(App);
+    const component = fixture.componentInstance;
+    component.setRole('designer');
+    await fixture.whenStable();
+    const project = { ...structuredClone(BASE_PROJECTS[0]), id: 'new-project', name: 'New project', status: 'Draft' as const, tokens: { primary: '#000000' }, tokenFileName: 'tokens.json', tokenCount: 1, images: [] };
+    component.createProject(project);
+    await fixture.whenStable();
+    expect(component.view()).toBe('manage');
+    expect(component.currentProject()?.id).toBe(project.id);
+    expect(loadProjectState().projects.some(saved => saved.id === project.id)).toBe(true);
+    const element = fixture.nativeElement as HTMLElement;
+    const dialog = element.querySelector('.delete-project-dialog') as HTMLDialogElement;
+    dialog.showModal = vi.fn();
+    dialog.close = vi.fn();
+    const trigger = element.querySelector('[aria-label="Delete New project"]') as HTMLButtonElement;
+    trigger.click();
+    await fixture.whenStable();
+    expect(dialog.showModal).toHaveBeenCalledOnce();
+    expect(dialog.textContent).toContain('New project');
+    expect(component.projects().length).toBe(5);
+    (dialog.querySelector('.project-text-link') as HTMLButtonElement).click();
+    dialog.dispatchEvent(new Event('close'));
+    expect(component.projects().length).toBe(5);
+    trigger.click();
+    (dialog.querySelector('.confirm-delete') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(component.projects().length).toBe(4);
+    expect(component.activeProjectId()).toBe('company-a');
+    expect(loadProjectState().projects.some(saved => saved.id === project.id)).toBe(false);
+    expect(loadProjectState().activeId).toBe('company-a');
+    component.projects.set([BASE_PROJECTS[0]]);
+    component.activeProjectId.set('company-a');
+    component.requestProjectDeletion({ project: BASE_PROJECTS[0], trigger }, dialog);
+    component.confirmProjectDeletion(dialog);
+    await fixture.whenStable();
+    expect(component.currentProject()).toBeNull();
+    expect(loadProjectState().projects).toEqual([]);
+    expect(element.querySelector('app-projects')?.textContent).toContain('No projects yet');
+  });
+
+  it('keeps projects intact on storage failure and rejects developer mutations', async () => {
+    const fixture = TestBed.createComponent(App);
+    const component = fixture.componentInstance;
+    const project = { ...structuredClone(BASE_PROJECTS[0]), id: 'new-project', name: 'New project', tokens: { color: '#000000' } };
+    component.createProject(project);
+    expect(component.projects().length).toBe(4);
+    component.setRole('designer');
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Quota'); });
+    try {
+      component.createProject(project);
+      expect(component.projects().length).toBe(4);
+      expect(component.projectError()).toContain('could not be saved');
+      expect(component.activeProjectId()).toBe('company-a');
+    } finally { write.mockRestore(); }
+    component.setRole('developer');
+    const dialog = document.createElement('dialog');
+    dialog.showModal = vi.fn();
+    component.requestProjectDeletion({ project: BASE_PROJECTS[0], trigger: document.createElement('button') }, dialog);
+    expect(dialog.showModal).not.toHaveBeenCalled();
+  });
+
+  it('opens read-only management from the project chooser link for Developer', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    const chooser = element.querySelector('dialog[aria-labelledby="theme-chooser-title"]') as HTMLDialogElement;
+    chooser.close = vi.fn();
+    (chooser.querySelector('.project-text-link') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(chooser.close).toHaveBeenCalledOnce();
+    expect(fixture.componentInstance.view()).toBe('manage');
+    expect(element.querySelector('app-projects h1')?.textContent).toBe('Manage projects');
+    expect(element.querySelector('app-projects .delete-action')).toBeNull();
   });
 
   it('should create the app', () => {
@@ -53,7 +248,7 @@ describe('App', () => {
     expect(element.getAttribute('data-role')).toBe('developer');
   });
 
-  it('places demo roles in the ribbon and enables the draft project workflow only for Designer', async () => {
+  it('hides project editing for Developer and opens the creation page for Designer', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
@@ -61,25 +256,26 @@ describe('App', () => {
     expect(element.querySelectorAll('.demo-ribbon .role-choice app-icon').length).toBe(0);
     expect(element.querySelector('.topbar .role-switcher')).toBeNull();
     const trigger = element.querySelector('.topbar .add-project') as HTMLButtonElement;
-    const dialog = element.querySelector('.project-dialog') as HTMLDialogElement;
-    dialog.showModal = vi.fn();
-    dialog.close = vi.fn();
+    const actions = element.querySelector('.topbar-actions') as HTMLElement;
     expect(trigger.disabled).toBe(true);
-    fixture.componentInstance.openProjectWizard(dialog);
-    expect(dialog.showModal).not.toHaveBeenCalled();
+    expect(actions.style.display).toBe('none');
+    fixture.componentInstance.showProjects('create');
+    expect(fixture.componentInstance.view()).toBe('library');
     (element.querySelector('.demo-ribbon input[value="designer"]') as HTMLInputElement).click();
     await fixture.whenStable();
     expect(trigger.disabled).toBe(false);
+    expect(actions.style.display).toBe('');
     trigger.click();
-    expect(dialog.showModal).toHaveBeenCalledOnce();
-    expect(dialog.querySelectorAll('.project-steps li').length).toBe(6);
-    expect(dialog.textContent).toContain('Token mapping');
-    expect(dialog.textContent).toContain('Project creation is not connected yet.');
-    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    expect(dialog.close).toHaveBeenCalledOnce();
-    const focus = vi.spyOn(trigger, 'focus');
-    dialog.dispatchEvent(new Event('close'));
-    expect(focus).toHaveBeenCalledOnce();
+    await fixture.whenStable();
+    expect(fixture.componentInstance.view()).toBe('create');
+    expect(element.querySelector('app-projects h1')?.textContent).toBe('Add project');
+    expect(element.querySelector('.project-dialog')).toBeNull();
+    (element.querySelector('.demo-ribbon input[value="developer"]') as HTMLInputElement).click();
+    await fixture.whenStable();
+    expect(actions.style.display).toBe('none');
+    expect(trigger.disabled).toBe(true);
+    expect(fixture.componentInstance.view()).toBe('manage');
+    expect(element.querySelector('app-projects .delete-action')).toBeNull();
   });
 
   it('replaces the breadcrumb with design system and theme context and opens the current theme chooser', async () => {
@@ -89,7 +285,7 @@ describe('App', () => {
     expect(element.querySelector('.breadcrumb')).toBeNull();
     expect(element.querySelector('.sidebar-label')).toBeNull();
     expect(element.querySelector('.system-name')?.textContent).toBe('Design System 0.0');
-    expect(element.querySelector('.theme-context')?.textContent).toContain('Themed for Company A');
+    expect(element.querySelector('.theme-context')?.textContent).toContain('Project: Company A');
     const dialog = element.querySelector('dialog[aria-labelledby="theme-chooser-title"]') as HTMLDialogElement;
     dialog.showModal = vi.fn();
     dialog.close = vi.fn();
@@ -97,19 +293,20 @@ describe('App', () => {
     (element.querySelector('.theme-change') as HTMLButtonElement).click();
     expect(dialog.showModal).toHaveBeenCalledOnce();
     expect(fixture.componentInstance.menuOpen()).toBe(false);
-    const choices = dialog.querySelectorAll<HTMLInputElement>('input[name="project-theme"]');
+    const choices = dialog.querySelectorAll<HTMLInputElement>('input[name="project-choice"]');
     expect(choices.length).toBe(4);
     expect(choices[0].value).toBe('company-a');
     expect(choices[0].checked).toBe(true);
     expect(dialog.querySelectorAll('img.theme-preview').length).toBe(4);
     choices[1].click();
     await fixture.whenStable();
-    expect(fixture.componentInstance.previewThemeId()).toBe('company-b');
-    expect(dialog.querySelector('.theme-dialog-actions')?.textContent).toContain('Sample preview');
-    expect(element.querySelector('.theme-context')?.textContent).toContain('Themed for Company A');
+    expect(fixture.componentInstance.previewProjectId()).toBe('company-b');
+    expect(dialog.querySelector('.theme-dialog-actions')?.textContent).toContain('Sample project');
+    expect(element.querySelector('.theme-context')?.textContent).toContain('Project: Company A');
     expect(dialog.querySelectorAll('.is-selected').length).toBe(1);
-    (dialog.querySelector('.theme-dialog-actions button') as HTMLButtonElement).click();
+    fixture.componentInstance.applyProject(dialog);
     expect(dialog.close).toHaveBeenCalledOnce();
+    expect(fixture.componentInstance.activeProjectId()).toBe('company-b');
     dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(dialog.close).toHaveBeenCalledTimes(2);
     const trigger = element.querySelector('.theme-change') as HTMLButtonElement;
@@ -154,6 +351,30 @@ describe('App', () => {
     app.select('fonts');
     expect(app.query()).toBe('');
     expect(app.visible().length).toBe(8);
+  });
+
+  it('collapses both sidebar categories and nested groups without changing the selected page', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.componentInstance.select('buttons');
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    const sections = [...element.querySelectorAll<HTMLDetailsElement>('.sidebar .nav-section')];
+    expect(sections.length).toBe(2);
+    expect(sections.every(section => section.open)).toBe(true);
+    const foundations = sections[0];
+    (foundations.querySelector('summary') as HTMLElement).click();
+    expect(foundations.open).toBe(false);
+    (foundations.querySelector('summary') as HTMLElement).click();
+    expect(foundations.open).toBe(true);
+    (element.querySelector('[aria-label="Collapse all categories"]') as HTMLButtonElement).click();
+    expect(element.querySelectorAll('.sidebar details[open]').length).toBe(0);
+    expect(fixture.componentInstance.category()).toBe('buttons');
+    expect(element.querySelector('h1')?.textContent).toContain('Buttons');
+    (sections[1].querySelector('summary') as HTMLElement).click();
+    expect(sections[1].open).toBe(true);
+    expect(sections[1].querySelectorAll('details[open]').length).toBe(0);
+    (sections[1].querySelector('.nav-group summary') as HTMLElement).click();
+    expect((sections[1].querySelector('.nav-group') as HTMLDetailsElement).open).toBe(true);
   });
 
   it('groups all three button pages under an expanded Buttons category', async () => {

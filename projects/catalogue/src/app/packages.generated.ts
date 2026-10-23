@@ -14,8 +14,8 @@ export const DELIVERY_PACKAGES = [
     "name": "indice-ui",
     "version": "0.0.1",
     "filename": "indice-ui-0.0.1.tgz",
-    "integrity": "sha512-p8QFTdRB6mlhZHxsUmZXy42oWyAYPDci7yLEbtu0SXQwwtO/tNC0n+c/UyOmq7tu9qZ+zTV4/w/gHDlRY7j0eQ==",
-    "bytes": 30074,
+    "integrity": "sha512-Wju6vuO6HyYbHPbN/77/wyruZUjqvfEDA1snSp6UuO2S/wr+eS4a+MlMx0fhZFAALh2eZNFCMdRJ1ZtnrsmCWA==",
+    "bytes": 30125,
     "peers": {
       "@angular/common": "^22.2.0",
       "@angular/core": "^22.2.0",

@@ -9,12 +9,30 @@
 @import '@fontsource/geologica/600.css';
 @import '../../indice-tokens/src/tokens.css';
 
+:root {
+	--ink: var(--indice-colours-main-neutral-900);
+	--muted: var(--indice-colours-main-neutral-700);
+	--line: var(--indice-colours-main-neutral-200);
+	--surface: var(--indice-colours-main-global-0);
+	--surface-subtle: var(--indice-colours-main-neutral-50);
+	--surface-muted: var(--indice-colours-main-neutral-100);
+	--surface-selected: var(--indice-colours-main-neutral-200);
+	--border-strong: var(--indice-colours-main-neutral-500);
+	--focus: var(--indice-colours-main-neutral-800);
+	--action: var(--indice-colours-main-global-950);
+	--action-hover: var(--indice-colours-main-neutral-900);
+	--error: var(--indice-colours-functions-error-600);
+	--overlay: color-mix(in srgb, var(--indice-colours-main-neutral-950) 72%, transparent);
+	--scrim: color-mix(in srgb, var(--indice-colours-main-neutral-950) 28%, transparent);
+	--shadow: color-mix(in srgb, var(--indice-colours-main-neutral-950) 8%, transparent);
+}
+
 * { box-sizing: border-box; letter-spacing: 0; }
-body { margin: 0; background: #fdfefd; color: #282c2a; font: 400 14px/1.5 Manrope, sans-serif; }
+body { margin: 0; background: var(--surface-subtle); color: var(--ink); font: 400 14px/1.5 Manrope, sans-serif; }
 button, input { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 button { cursor: pointer; }
-button:focus-visible, a:focus-visible { outline: 2px solid #537b63; outline-offset: 4px; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
 app-icon { display: inline-flex; flex-shrink: 0; vertical-align: middle; }
 app-icon svg { display: block; }
-::selection { background: #dce9dc; color: #253d2d; }
+::selection { background: var(--surface-selected); color: var(--ink); }

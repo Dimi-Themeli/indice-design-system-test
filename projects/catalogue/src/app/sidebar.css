@@ -1,0 +1,9 @@
+.sidebar-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-left: 10px; margin-bottom: 8px; color: var(--muted); font-size: 12px; }
+.sidebar-tools .icon-button { width: 32px; height: 32px; }
+.sidebar-tools .icon-button:hover { background: var(--surface-muted); }
+.chapter { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; padding: 12px 10px; list-style: none; cursor: pointer; border-radius: 4px; }
+.chapter::-webkit-details-marker { display: none; }
+.chapter:hover { background: var(--surface-muted); }
+.chapter:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.chapter-chevron { margin-left: auto; }
+.nav-section[open] > .chapter .chapter-chevron { transform: rotate(90deg); }

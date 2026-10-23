@@ -108,6 +108,16 @@ Load Geologica 300 and 400 in the consuming app. See `projects/indice-ui/README.
 - [ ] Designer and engineering approval workflow. Deferred; no approval states or review tooling are implemented yet.
 - [ ] Private npm registry publishing and automated releases. Current delivery uses local package archives, not a published registry package.
 
+## Demo Projects
+
+The ribbon switches between simulated Designer and Developer roles; this is not authentication or server-side authorization. Designers can open **Add project** as a full page and **Manage projects** through the adjacent folder icon. **Change project** also links to management; Developers get a read-only view.
+
+Only a project name and a valid token JSON file are required. Customer, description, Figma link and reference images are optional; platform and light/dark support have defaults. JSON files may use nested `$value`/`value` tokens or a plain token object (up to 1 MB). References accept up to three PNG/JPEG/WebP images, each up to 1 MB.
+
+Projects, imported token data, reference images and the current selection are saved to this browser's local storage under `indice-demo-projects-v1`. Storage failures are reported without discarding the existing project list. Deletion requires confirmation, removes the stored project copy, and selects another project or the base library if the active project is deleted. An empty project list remains empty after reload.
+
+New projects are **Drafts**. Token imports are validated and stored, not automatically mapped into component styling or published as packages. Project selection changes catalogue context; the shared component implementation and current base styling remain unchanged. A project contains the customer context and references; its **theme** is the styling configuration, including light/dark modes.
+
 ## Developer Handoff
 
 Every implemented component page uses bordered radio cards to select a variant before enabling **Use It**. Selection stays synchronized with the Playground. Use It opens on **Code**, with the complete standalone Angular component first and a copy action. Template, imports and form state remain available as read-only references. The header includes a copyable CSS selector, not unsupported internal class names. **Setup**, **API** and **Accessibility** are secondary views.

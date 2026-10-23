@@ -11,8 +11,8 @@
   --icon-default: var(--glyph-light);
   --icon-hover: var(--icon-default);
   --icon-pressed: var(--icon-default);
-  --fill-default: var(--colours-surface-element-primary-default, var(--indice-colours-main-neutral-900, #201f1e));
-  --fill-hover: var(--colours-surface-element-primary-hover, var(--indice-colours-main-neutral-600, #6f6d68));
+  --fill-default: var(--colours-surface-element-primary-default, var(--indice-colours-main-global-950, #000));
+  --fill-hover: var(--colours-surface-element-primary-hover, var(--indice-colours-main-neutral-900, #201f1e));
   --fill-pressed: var(--colours-surface-element-primary-pressed, var(--indice-colours-main-neutral-950, #141312));
   --text-default: var(--colours-text-on-filled-button-black, var(--indice-colours-main-global-0, #fff));
   --text-hover: var(--text-default);

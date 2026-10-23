@@ -1,15 +1,17 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, ElementRef, afterNextRender, computed, signal, viewChild } from '@angular/core';
 import { TOKENS, DesignToken } from 'indice-tokens';
 import { Icon } from './icon';
 import { ButtonCatalogue } from './buttons';
 import { IconButtonCatalogue } from './icon-buttons';
 import { SocialButtonCatalogue } from './social-buttons';
 import { FieldCatalogue } from './fields';
+import { Projects } from './projects';
+import { Project, loadProjectState, saveProjectState } from './project-data';
 
 @Component({
-  imports: [Icon, ButtonCatalogue, IconButtonCatalogue, SocialButtonCatalogue, FieldCatalogue],
+  imports: [Icon, ButtonCatalogue, IconButtonCatalogue, SocialButtonCatalogue, FieldCatalogue, Projects],
   selector: 'app-root',
-  styleUrls: ['./app.css', './theme-chooser.css', './project-wizard.css'],
+  styleUrls: ['./app.css', './sidebar.css', './theme-chooser.css', './project-wizard.css', './welcome.css'],
   templateUrl: './app.html',
   host: { '(document:keydown.escape)': 'menuOpen.set(false)', '[attr.data-role]': 'role()' },
 })
@@ -26,25 +28,20 @@ export class App {
   readonly query = signal('');
   readonly copyMode = signal<'variable' | 'value'>('variable');
   readonly role = signal<'designer' | 'developer'>('developer');
-  readonly projectSetupSteps = [
-    { title: 'Project details', summary: 'Project name, customer, description, desktop or mobile, and supported light/dark modes.' },
-    { title: 'Design references', summary: 'Optional Figma file or frame links and reference screenshots for the branded theme.' },
-    { title: 'Brand assets', summary: 'Logos, app icons, and licensed fonts or approved font fallbacks.' },
-    { title: 'Token mapping', summary: 'Import a token JSON file or start from the base theme; map colours, typography, spacing and radii to shared component tokens.' },
-    { title: 'Component preview', summary: 'Review the shared components across variants, states and screen sizes; check contrast and missing theme values.' },
-    { title: 'Review and publish', summary: 'Review theme changes, request developer approval, and publish a versioned theme for the shared Angular library.' },
-  ];
-  readonly themePreviews = [
-    { id: 'company-a', name: 'Company A', modes: 'Light', platform: 'Desktop app', image: 'assets/theme-company-a.png', sample: false },
-    { id: 'company-b', name: 'Company B / Workspace', modes: 'Light & dark', platform: 'Desktop app', image: 'assets/theme-company-b.png', sample: true },
-    { id: 'company-c', name: 'Company C / Pocket', modes: 'Light', platform: 'Mobile app', image: 'assets/theme-company-c.png', sample: true },
-    { id: 'company-d', name: 'Company D / Console', modes: 'Dark', platform: 'Desktop & mobile', image: 'assets/theme-company-d.png', sample: true },
-  ] as const;
-  readonly previewThemeId = signal('company-a');
-  readonly selectedThemePreview = computed(() => this.themePreviews.find(theme => theme.id === this.previewThemeId())!);
+  private readonly savedProjects = loadProjectState();
+  readonly projects = signal<Project[]>(this.savedProjects.projects);
+  readonly activeProjectId = signal<string | null>(this.savedProjects.activeId);
+  readonly currentProject = computed(() => this.projects().find(project => project.id === this.activeProjectId()) ?? null);
+  readonly previewProjectId = signal<string | null>(this.savedProjects.activeId);
+  readonly selectedProjectPreview = computed(() => this.projects().find(project => project.id === this.previewProjectId()) ?? null);
+  readonly view = signal<'library' | 'create' | 'manage'>('library');
+  readonly projectError = signal(this.savedProjects.warning);
+  readonly pendingDeletion = signal<Project | null>(null);
+  private deleteTrigger: HTMLButtonElement | null = null;
   readonly menuOpen = signal(false);
   readonly notice = signal('');
   private noticeTimer?: ReturnType<typeof setTimeout>;
+  private readonly welcomeDialog = viewChild.required<ElementRef<HTMLDialogElement>>('welcome');
   readonly isComponent = computed(() => ['buttons', 'icon-buttons', 'social-buttons', 'fields'].includes(this.category()));
   readonly title = computed(() => this.category() === 'buttons' ? 'Buttons' : this.category() === 'icon-buttons' ? 'Icon Buttons' : this.category() === 'social-buttons' ? 'Social Media Buttons' : this.category() === 'fields' ? 'Input Field' : this.query().trim() ? 'Search results' : this.categories.find(item => item.id === this.category())!.title);
   readonly visible = computed(() => {
@@ -63,27 +60,107 @@ export class App {
     return [...groups].map(([name, tokens]) => ({ name, title: name.split('.').slice(1).join(' / ') || name, tokens, category: tokens[0].category }));
   });
 
+  constructor() {
+    afterNextRender(() => this.openWelcome());
+  }
+
+  openWelcome() {
+    const dialog = this.welcomeDialog().nativeElement;
+    if (typeof dialog.showModal === 'function' && !dialog.open) dialog.showModal();
+  }
+
   count(category: string) { return TOKENS.filter(token => token.category === category).length; }
+
+  collapseAll(sidebar: HTMLElement) {
+    sidebar.querySelectorAll<HTMLDetailsElement>('details').forEach(section => section.open = false);
+  }
 
   setRole(role: 'designer' | 'developer') {
     this.role.set(role);
     this.menuOpen.set(false);
+    if (role === 'developer' && this.view() === 'create') this.view.set('manage');
   }
 
   openThemeChooser(dialog: HTMLDialogElement) {
     this.menuOpen.set(false);
-    this.previewThemeId.set('company-a');
+    this.previewProjectId.set(this.activeProjectId());
     dialog.showModal();
   }
 
-  openProjectWizard(dialog: HTMLDialogElement) {
-    if (this.role() !== 'designer') return;
+  showProjects(view: 'library' | 'create' | 'manage') {
+    if (view === 'create' && this.role() !== 'designer') return;
+    this.view.set(view);
     this.menuOpen.set(false);
+    window.scrollTo({ top: 0 });
+    document.getElementById('main')?.focus({ preventScroll: true });
+  }
+
+  selectProjectPreview(id: string) {
+    if (this.projects().some(project => project.id === id)) this.previewProjectId.set(id);
+  }
+
+  private commitProjects(projects: Project[], activeId: string | null): boolean {
+    try {
+      saveProjectState(projects, activeId);
+      this.projects.set(projects);
+      this.activeProjectId.set(activeId);
+      this.projectError.set('');
+      return true;
+    } catch (error) {
+      this.projectError.set(error instanceof Error ? error.message : 'Projects could not be saved.');
+      return false;
+    }
+  }
+
+  createProject(project: Project) {
+    if (this.role() !== 'designer') return;
+    if (!project.name.trim() || !project.tokens || this.projects().some(existing => existing.id === project.id || existing.name.toLowerCase() === project.name.toLowerCase())) {
+      this.projectError.set('Use a unique project name and a valid token JSON file.');
+      return;
+    }
+    if (this.commitProjects([...this.projects(), project], project.id)) {
+      this.showProjects('manage');
+      this.showNotice('Project created');
+    }
+  }
+
+  activateProject(id: string): boolean {
+    if (!this.projects().some(project => project.id === id)) return false;
+    if (!this.commitProjects(this.projects(), id)) return false;
+    this.previewProjectId.set(id);
+    this.showProjects('library');
+    return true;
+  }
+
+  applyProject(dialog: HTMLDialogElement) {
+    const id = this.previewProjectId();
+    if (id && this.activateProject(id)) dialog.close();
+  }
+
+  requestProjectDeletion(request: { project: Project; trigger: HTMLButtonElement }, dialog: HTMLDialogElement) {
+    if (this.role() !== 'designer') return;
+    const project = this.projects().find(project => project.id === request.project.id);
+    if (!project) return;
+    this.pendingDeletion.set(project);
+    this.deleteTrigger = request.trigger;
     dialog.showModal();
   }
 
-  selectThemePreview(id: string) {
-    if (this.themePreviews.some(theme => theme.id === id)) this.previewThemeId.set(id);
+  confirmProjectDeletion(dialog: HTMLDialogElement) {
+    const project = this.pendingDeletion();
+    if (!project || this.role() !== 'designer') return;
+    const remaining = this.projects().filter(existing => existing.id !== project.id);
+    const activeId = this.activeProjectId() === project.id ? remaining[0]?.id ?? null : this.activeProjectId();
+    if (!this.commitProjects(remaining, activeId)) return;
+    this.previewProjectId.set(activeId);
+    dialog.close();
+    this.showNotice('Project deleted');
+  }
+
+  closeProjectDeletion(fallback: HTMLButtonElement) {
+    this.pendingDeletion.set(null);
+    (this.deleteTrigger?.isConnected ? this.deleteTrigger : fallback).focus();
+    this.deleteTrigger = null;
   }
 
   onThemeBackdrop(event: MouseEvent) {
@@ -94,6 +171,7 @@ export class App {
   }
 
   select(category: string) {
+    this.view.set('library');
     this.category.set(category);
     this.query.set('');
     this.menuOpen.set(false);
