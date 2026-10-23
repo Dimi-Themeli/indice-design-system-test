@@ -46,15 +46,15 @@ describe('App', () => {
     }
   });
 
-  it('dismisses the welcome with Escape and the close action', async () => {
+  it('keeps Escape dismissal without a welcome close button', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const dialog = fixture.nativeElement.querySelector('.welcome-dialog') as HTMLDialogElement;
     dialog.close = vi.fn();
     dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(dialog.close).toHaveBeenCalledOnce();
-    (dialog.querySelector('.welcome-close') as HTMLButtonElement).click();
-    expect(dialog.close).toHaveBeenCalledTimes(2);
+    expect(dialog.querySelector('.welcome-close')).toBeNull();
+    expect(dialog.querySelectorAll('button').length).toBe(2);
   });
 
   it('validates token files and optional Figma links', () => {

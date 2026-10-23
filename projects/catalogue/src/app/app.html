@@ -1,6 +1,6 @@
 <a class="skip-link" href="#main">Skip to content</a>
 <dialog #welcome class="welcome-dialog" aria-labelledby="welcome-title" aria-describedby="welcome-intro" (keydown.escape)="welcome.close()" (close)="role() === 'designer' ? designerRole.focus() : developerRole.focus()">
-  <div class="welcome-brand"><img src="assets/INDICE-logo-text-only.svg" alt="Indice" width="160" height="32" /><button type="button" class="welcome-close" aria-label="Close welcome" title="Close welcome" (click)="welcome.close()"><app-icon name="close" /></button></div>
+  <div class="welcome-brand"><img src="assets/INDICE-logo-text-only.svg" alt="Indice" width="160" height="32" /></div>
   <h2 id="welcome-title" tabindex="-1" autofocus>Welcome.... you :)</h2>
   <p id="welcome-intro">One shared design system, from design to development. Explore the component library or create a branded project, together.</p>
   <div class="welcome-roles" role="group" aria-label="Choose your role"><button type="button" (click)="setRole('developer'); welcome.close()"><app-icon name="code" />I am a developer</button><button type="button" (click)="setRole('designer'); welcome.close()"><app-icon name="layers" />I am a designer</button></div>

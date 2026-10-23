@@ -1,9 +1,7 @@
 .welcome-dialog { width: min(620px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 36px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); overflow: auto; }
 .welcome-dialog::backdrop { background: var(--overlay); }
-.welcome-brand { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.welcome-brand img { display: block; width: 144px; height: auto; max-width: calc(100% - 52px); }
-.welcome-close { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--muted); }
-.welcome-close:hover { background: var(--surface-muted); color: var(--ink); }
+.welcome-brand { display: flex; align-items: center; min-height: 36px; }
+.welcome-brand img { display: block; width: 144px; height: auto; max-width: 100%; }
 .welcome-dialog h2 { margin: 36px 0 12px; font: 400 28px/1.25 Geologica, sans-serif; text-transform: none; overflow-wrap: anywhere; }
 .welcome-dialog h2:focus { outline: none; }
 #welcome-intro { margin: 0; max-width: 460px; color: var(--muted); font-size: 14px; line-height: 1.8; }
