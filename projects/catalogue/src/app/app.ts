@@ -34,7 +34,9 @@ export class App {
   readonly currentProject = computed(() => this.projects().find(project => project.id === this.activeProjectId()) ?? null);
   readonly previewProjectId = signal<string | null>(this.savedProjects.activeId);
   readonly selectedProjectPreview = computed(() => this.projects().find(project => project.id === this.previewProjectId()) ?? null);
-  readonly view = signal<'library' | 'create' | 'manage'>('library');
+  readonly view = signal<'library' | 'create' | 'edit' | 'manage'>('library');
+  readonly editingProjectId = signal<string | null>(null);
+  readonly editingProject = computed(() => this.projects().find(project => project.id === this.editingProjectId()) ?? null);
   readonly projectError = signal(this.savedProjects.warning);
   readonly pendingDeletion = signal<Project | null>(null);
   private deleteTrigger: HTMLButtonElement | null = null;
@@ -93,7 +95,7 @@ export class App {
   setRole(role: 'designer' | 'developer') {
     this.role.set(role);
     this.menuOpen.set(false);
-    if (role === 'developer' && this.view() === 'create') this.view.set('manage');
+    if (role === 'developer' && (this.view() === 'create' || this.view() === 'edit')) this.view.set('manage');
   }
 
   openThemeChooser(dialog: HTMLDialogElement) {
@@ -105,6 +107,7 @@ export class App {
 
   showProjects(view: 'library' | 'create' | 'manage') {
     if (view === 'create' && this.role() !== 'designer') return;
+    this.editingProjectId.set(null);
     this.view.set(view);
     this.menuOpen.set(false);
     window.scrollTo({ top: 0 });
@@ -137,6 +140,27 @@ export class App {
     if (this.commitProjects([...this.projects(), project], project.id)) {
       this.showProjects('manage');
       this.showNotice('Project created');
+    }
+  }
+
+  editProject(id: string) {
+    if (this.role() !== 'designer' || !this.projects().some(project => project.id === id)) return;
+    this.editingProjectId.set(id);
+    this.view.set('edit');
+    this.menuOpen.set(false);
+    window.scrollTo({ top: 0 });
+    document.getElementById('main')?.focus({ preventScroll: true });
+  }
+
+  saveProject(project: Project) {
+    if (this.role() !== 'designer' || this.editingProjectId() !== project.id || !project.name.trim() || !project.tokens) return;
+    if (this.projects().some(existing => existing.id !== project.id && existing.name.toLowerCase() === project.name.trim().toLowerCase())) {
+      this.projectError.set('Use a unique project name and a valid token JSON file.');
+      return;
+    }
+    if (this.commitProjects(this.projects().map(existing => existing.id === project.id ? project : existing), this.activeProjectId())) {
+      this.showProjects('manage');
+      this.showNotice('Project updated');
     }
   }
 

@@ -133,11 +133,16 @@ export function loadProjectState(storage?: Pick<Storage, 'getItem'>): ProjectSta
     if (!source) return fallback();
     const parsed: unknown = JSON.parse(source);
     if (!isObject(parsed) || parsed['version'] !== 1 || !Array.isArray(parsed['projects']) || !parsed['projects'].every(isProject)) throw new Error('Invalid project data');
-    const uploaded = (parsed['projects'] as Project[]).filter(project => project.status === 'Draft' && !BASE_PROJECT_IDS.has(project.id)).map(project => {
+    const stored = parsed['projects'] as Project[];
+    const uploaded = stored.filter(project => project.status === 'Draft' && !BASE_PROJECT_IDS.has(project.id)).map(project => {
       const { logo, ...savedProject } = project as Project & { logo?: string | null };
       return { ...savedProject, logoDark: project.logoDark ?? null, logoLight: project.logoLight ?? logo ?? null };
     });
-    const projects = [...structuredClone(BASE_PROJECTS), ...uploaded];
+    const base = BASE_PROJECTS.map(project => {
+      const edited = stored.find(saved => saved.id === project.id && saved.status === 'Base');
+      return edited ? { ...structuredClone(project), ...edited, logoDark: edited.logoDark ?? null, logoLight: edited.logoLight ?? null } : structuredClone(project);
+    });
+    const projects = [...base, ...uploaded];
     if (new Set(projects.map(project => project.id)).size !== projects.length) throw new Error('Duplicate project identifiers');
     return { projects, activeId: projects.some(project => project.id === parsed['activeId']) ? String(parsed['activeId']) : BASE_PROJECT_ID, warning: '' };
   } catch {
@@ -146,7 +151,10 @@ export function loadProjectState(storage?: Pick<Storage, 'getItem'>): ProjectSta
 }
 
 export function saveProjectState(projects: Project[], activeId: string | null, storage?: Pick<Storage, 'setItem'>) {
-  const uploaded = projects.filter(project => !BASE_PROJECT_IDS.has(project.id));
+  const uploaded = projects.filter(project => {
+    const base = BASE_PROJECTS.find(item => item.id === project.id);
+    return base ? JSON.stringify(project) !== JSON.stringify(base) : !BASE_PROJECT_IDS.has(project.id);
+  });
   try { (storage ?? localStorage).setItem(PROJECT_STORAGE_KEY, JSON.stringify({ version: 1, projects: uploaded, activeId })); }
   catch { throw new Error('Projects could not be saved in this browser. Free storage space or remove reference images, then try again.'); }
 }

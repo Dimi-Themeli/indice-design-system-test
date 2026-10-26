@@ -11,15 +11,18 @@ interface ProjectDraft { name: string; customer: string; description: string; fi
   styleUrl: './projects.css',
 })
 export class Projects {
-  readonly page = input<'create' | 'manage'>('manage');
+  readonly page = input<'create' | 'edit' | 'manage'>('manage');
   readonly projects = input<Project[]>([]);
+  readonly editing = input<Project | null>(null);
   readonly canEdit = input(false);
   readonly activeId = input<string | null>(null);
   readonly error = input('');
   readonly create = output<Project>();
+  readonly save = output<Project>();
+  readonly edit = output<string>();
   readonly open = output<string>();
   readonly remove = output<{ project: Project; trigger: HTMLButtonElement }>();
-  readonly navigate = output<'create' | 'library'>();
+  readonly navigate = output<'create' | 'library' | 'manage'>();
   readonly modes = PROJECT_MODES;
   readonly platforms = PROJECT_PLATFORMS;
   readonly draft = signal<ProjectDraft>({ name: '', customer: '', description: '', figmaUrl: '', modes: 'Light', platform: 'Desktop app' });
@@ -43,19 +46,22 @@ export class Projects {
   constructor() {
     effect(() => {
       this.page();
+      const project = this.page() === 'edit' ? this.editing() : null;
       this.tokenRead++;
       this.logoRead.dark++;
       this.logoRead.light++;
       this.imageRead++;
-      this.draft.set({ name: '', customer: '', description: '', figmaUrl: '', modes: 'Light', platform: 'Desktop app' });
-      this.tokenFileName.set('');
-      this.tokenDocument.set(null);
+      this.draft.set(project
+        ? { name: project.name, customer: project.customer, description: project.description, figmaUrl: project.figmaUrl, modes: project.modes, platform: project.platform }
+        : { name: '', customer: '', description: '', figmaUrl: '', modes: 'Light', platform: 'Desktop app' });
+      this.tokenFileName.set(project?.tokenFileName ?? '');
+      this.tokenDocument.set(project?.tokens ? { tokens: project.tokens, count: project.tokenCount } : null);
       this.tokenError.set('');
       this.formError.set('');
-      this.logos.set({ dark: null, light: null });
+      this.logos.set({ dark: project?.logoDark ?? null, light: project?.logoLight ?? null });
       this.logoErrors.set({ dark: '', light: '' });
       this.readingLogos.set({ dark: false, light: false });
-      this.images.set([]);
+      this.images.set(project ? [...project.images] : []);
       this.imageError.set('');
       this.readingTokens.set(false);
       this.readingImages.set(false);
@@ -69,8 +75,9 @@ export class Projects {
 
   async selectTokenFile(file: File | null) {
     const version = ++this.tokenRead;
-    this.tokenDocument.set(null);
-    this.tokenFileName.set(file?.name ?? '');
+    const original = this.page() === 'edit' ? this.editing() : null;
+    this.tokenDocument.set(!file && original?.tokens ? { tokens: original.tokens, count: original.tokenCount } : null);
+    this.tokenFileName.set(file?.name ?? original?.tokenFileName ?? '');
     this.tokenError.set('');
     this.formError.set('');
     this.readingTokens.set(false);
@@ -161,16 +168,20 @@ export class Projects {
 
   submit() {
     if (!this.canEdit() || this.readingTokens() || this.readingLogos().dark || this.readingLogos().light || this.readingImages()) return;
+    const editing = this.page() === 'edit' ? this.editing() : null;
+    if (this.page() === 'edit' && !editing) return;
     const draft = this.draft();
     const name = draft.name.trim();
     const document = this.tokenDocument();
     if (!name || name.length > 80) { this.formError.set('Enter a project name of 1 to 80 characters.'); return; }
-    if (this.projects().some(project => project.name.toLowerCase() === name.toLowerCase())) { this.formError.set('A project with this name already exists.'); return; }
+    if (this.projects().some(project => project.id !== editing?.id && project.name.toLowerCase() === name.toLowerCase())) { this.formError.set('A project with this name already exists.'); return; }
     if (!document) { this.formError.set('Choose a valid token JSON file.'); return; }
     if (!validFigmaUrl(draft.figmaUrl)) { this.formError.set('Use an HTTPS Figma link, or leave the link empty.'); return; }
     if (this.logoErrors().dark || this.logoErrors().light) { this.formError.set('Remove or replace the invalid theme logo.'); return; }
     if (this.imageError()) { this.formError.set('Remove or replace the invalid reference images.'); return; }
     this.formError.set('');
-    this.create.emit({ id: crypto.randomUUID(), name, customer: draft.customer.trim(), description: draft.description.trim(), figmaUrl: draft.figmaUrl.trim(), logoDark: this.logos().dark, logoLight: this.logos().light, modes: draft.modes, platform: draft.platform, images: this.images(), tokenFileName: this.tokenFileName(), tokens: document.tokens, tokenCount: document.count, createdAt: new Date().toISOString(), status: 'Draft' });
+    const fields = { name, customer: draft.customer.trim(), description: draft.description.trim(), figmaUrl: draft.figmaUrl.trim(), logoDark: this.logos().dark, logoLight: this.logos().light, modes: draft.modes, platform: draft.platform, images: this.images(), tokenFileName: this.tokenFileName(), tokens: document.tokens, tokenCount: document.count };
+    if (editing) this.save.emit({ ...editing, ...fields });
+    else this.create.emit({ id: crypto.randomUUID(), ...fields, createdAt: new Date().toISOString(), status: 'Draft' });
   }
 }

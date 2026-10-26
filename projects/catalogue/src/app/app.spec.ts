@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { App } from './app';
 import { vi } from 'vitest';
 import { ButtonCatalogue } from './buttons';
@@ -239,6 +240,55 @@ describe('App', () => {
     component.update('name', 'Read-only');
     component.submit();
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it('edits a project from Manage projects, keeping its tokens unless a replacement JSON is chosen', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    app.setRole('designer');
+    await fixture.whenStable();
+    const project = { ...structuredClone(BASE_PROJECTS[0]), id: 'novio', name: 'Novio', status: 'Draft' as const, tokens: { color: '#111111' }, tokenFileName: 'old.json', tokenCount: 1, logoLight: 'data:image/png;base64,AA==', images: [] };
+    app.createProject(project);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    (element.querySelector('[aria-label="Edit Novio"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(app.view()).toBe('edit');
+    expect(element.querySelector('.topbar')?.hasAttribute('hidden')).toBe(true);
+    expect(element.querySelector('app-projects h1')?.textContent).toContain('Edit Novio');
+    const form = fixture.debugElement.query(By.directive(Projects)).componentInstance as Projects;
+    expect(form.draft().name).toBe('Novio');
+    expect(form.tokenFileName()).toBe('old.json');
+    expect(form.logos().light).toBe(project.logoLight);
+    expect((element.querySelector('input[name="projectName"]') as HTMLInputElement).value).toBe('Novio');
+    expect(element.querySelector('app-projects .primary-action')?.textContent).toContain('Save changes');
+    form.update('name', 'IAM');
+    form.submit();
+    expect(form.formError()).toContain('already exists');
+    form.update('name', 'Novio renamed');
+    form.clearLogo('light');
+    form.submit();
+    await fixture.whenStable();
+    expect(app.view()).toBe('manage');
+    expect(app.projects().find(item => item.id === 'novio')).toMatchObject({ name: 'Novio renamed', tokenFileName: 'old.json', tokens: { color: '#111111' }, logoLight: null });
+    app.editProject('novio');
+    await fixture.whenStable();
+    await form.selectTokenFile({ name: 'new.json', size: 20, text: async () => '{"color":"#222222","other":"#333333"}' } as File);
+    form.submit();
+    await fixture.whenStable();
+    expect(loadProjectState().projects.find(item => item.id === 'novio')).toMatchObject({ tokenFileName: 'new.json', tokenCount: 2, tokens: { color: '#222222' } });
+    app.editProject('iam');
+    await fixture.whenStable();
+    form.update('name', 'IAM edited');
+    form.submit();
+    await fixture.whenStable();
+    expect(loadProjectState().projects[0]).toMatchObject({ id: 'iam', name: 'IAM edited', status: 'Base' });
+    expect(element.querySelector('[aria-label="Delete IAM edited"]')).toBeNull();
+    app.setRole('developer');
+    await fixture.whenStable();
+    expect(element.querySelector('[aria-label="Edit IAM edited"]')).toBeNull();
+    app.editProject('novio');
+    expect(app.view()).toBe('manage');
   });
 
   it('starts a fresh project form when returning from management', async () => {

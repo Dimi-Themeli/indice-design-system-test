@@ -39,7 +39,7 @@
 </aside>
 @if (menuOpen()) { <button class="scrim" aria-label="Close navigation" (click)="menuOpen.set(false)"></button> }
 <div class="workspace">
-  <header class="topbar" [hidden]="view() === 'create'">
+  <header class="topbar" [hidden]="view() === 'create' || view() === 'edit'">
     <button class="icon-button mobile-menu" type="button" title="Toggle navigation" aria-label="Toggle navigation" [attr.aria-expanded]="menuOpen()" (click)="menuOpen.set(!menuOpen())"><app-icon [name]="menuOpen() ? 'close' : 'menu'" /></button>
     <div class="system-context">@if (currentProject()?.logoLight; as logo) { <img class="project-header-logo" [src]="logo" [alt]="(currentProject()?.name ?? 'Project') + ' logo'" /> }<div class="system-name">Design System <span class="system-version">0.0</span></div><div class="theme-context"><span>Project: {{ currentProject()?.name ?? 'Base library' }}</span><button #themeTrigger type="button" class="source-link theme-change" (click)="openThemeChooser(themeChooser)"><app-icon name="change" /><span>Change project</span></button></div></div>
     <div class="topbar-actions" [style.display]="role() === 'designer' ? null : 'none'">
@@ -67,7 +67,7 @@
   </dialog>
   <main #mainContent id="main" tabindex="-1">
     @if (view() !== 'library') {
-      <app-projects [page]="view() === 'create' ? 'create' : 'manage'" [projects]="projects()" [activeId]="activeProjectId()" [canEdit]="role() === 'designer'" [error]="projectError()" (create)="createProject($event)" (open)="activateProject($event)" (remove)="requestProjectDeletion($event, deleteDialog)" (navigate)="showProjects($event)" />
+      <app-projects [page]="view() === 'create' ? 'create' : view() === 'edit' ? 'edit' : 'manage'" [projects]="projects()" [editing]="editingProject()" [activeId]="activeProjectId()" [canEdit]="role() === 'designer'" [error]="projectError()" (create)="createProject($event)" (save)="saveProject($event)" (edit)="editProject($event)" (open)="activateProject($event)" (remove)="requestProjectDeletion($event, deleteDialog)" (navigate)="showProjects($event)" />
     } @else {
     <div class="page-heading"><div><div class="eyebrow">INDICE / {{ isComponent() ? 'COMPONENTS' : 'FOUNDATIONS' }}</div><h1>{{ title() }}<span class="heading-dot">.</span></h1></div><span class="total">@if (category() === 'buttons') { <strong>7</strong> variants / <strong>28</strong> states } @else if (category() === 'icon-buttons') { <strong>4</strong> variants / <strong>4</strong> sizes / <strong>64</strong> states } @else if (category() === 'social-buttons') { <strong>4</strong> providers / <strong>12</strong> states } @else if (category() === 'fields') { <strong>11</strong> variants / <strong>2</strong> layouts } @else { <strong>{{ tokens.length }}</strong> primitive tokens }</span></div>
     @if (category() === 'buttons') {
