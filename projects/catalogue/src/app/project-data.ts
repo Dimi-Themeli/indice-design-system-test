@@ -20,7 +20,8 @@ export interface Project {
   status: 'Base' | 'Sample' | 'Draft';
 }
 
-export interface ProjectState { projects: Project[]; activeId: string | null; warning: string; }
+export interface ProjectState { projects: Project[]; activeId: string | null; warning: string; storedIds: string[]; requestedActiveId: string | null; removedDemoIds: string[]; }
+export const DEMO_DATA_URL = 'demo-projects.json';
 export const PROJECT_STORAGE_KEY = 'indice-demo-projects-v1';
 export const PROJECT_MODES = ['Light', 'Dark', 'Light & dark'] as const;
 export const PROJECT_PLATFORMS = ['Desktop app', 'Mobile app', 'Desktop & mobile'] as const;
@@ -156,7 +157,7 @@ function isProject(value: unknown): value is Project {
 }
 
 export function loadProjectState(storage?: Pick<Storage, 'getItem'>): ProjectState {
-  const fallback = () => ({ projects: structuredClone(BASE_PROJECTS), activeId: BASE_PROJECT_ID, warning: '' });
+  const fallback = () => ({ projects: structuredClone(BASE_PROJECTS), activeId: BASE_PROJECT_ID, warning: '', storedIds: [] as string[], requestedActiveId: null, removedDemoIds: [] as string[] });
   try {
     const source = (storage ?? localStorage).getItem(PROJECT_STORAGE_KEY);
     if (!source) return fallback();
@@ -173,17 +174,44 @@ export function loadProjectState(storage?: Pick<Storage, 'getItem'>): ProjectSta
     });
     const projects = [...base, ...uploaded];
     if (new Set(projects.map(project => project.id)).size !== projects.length) throw new Error('Duplicate project identifiers');
-    return { projects, activeId: projects.some(project => project.id === parsed['activeId']) ? String(parsed['activeId']) : BASE_PROJECT_ID, warning: '' };
+    const requestedActiveId = typeof parsed['activeId'] === 'string' ? parsed['activeId'] : null;
+    const removedDemoIds = Array.isArray(parsed['removedDemoIds']) ? parsed['removedDemoIds'].filter((id): id is string => typeof id === 'string') : [];
+    return { projects, activeId: projects.some(project => project.id === requestedActiveId) ? requestedActiveId : BASE_PROJECT_ID, warning: '', storedIds: stored.map(project => project.id), requestedActiveId, removedDemoIds };
   } catch {
     return { ...fallback(), warning: 'Saved projects could not be loaded. Only the IAM project is shown.' };
   }
 }
 
-export function saveProjectState(projects: Project[], activeId: string | null, storage?: Pick<Storage, 'setItem'>) {
-  const uploaded = projects.filter(project => {
-    const base = BASE_PROJECTS.find(item => item.id === project.id);
-    return base ? JSON.stringify(project) !== JSON.stringify(base) : !BASE_PROJECT_IDS.has(project.id);
+function changedProjects(projects: Project[], reference: Project[]): Project[] {
+  return projects.filter(project => {
+    const original = reference.find(item => item.id === project.id) ?? BASE_PROJECTS.find(item => item.id === project.id);
+    return original ? JSON.stringify(project) !== JSON.stringify(original) : !BASE_PROJECT_IDS.has(project.id);
   });
-  try { (storage ?? localStorage).setItem(PROJECT_STORAGE_KEY, JSON.stringify({ version: 1, projects: uploaded, activeId })); }
+}
+
+export function saveProjectState(projects: Project[], activeId: string | null, storage?: Pick<Storage, 'setItem'>, demoProjects: Project[] = [], removedDemoIds: string[] = []) {
+  const uploaded = changedProjects(projects, demoProjects);
+  try { (storage ?? localStorage).setItem(PROJECT_STORAGE_KEY, JSON.stringify({ version: 1, projects: uploaded, activeId, ...(removedDemoIds.length ? { removedDemoIds } : {}) })); }
   catch { throw new Error('Projects could not be saved in this browser. Free storage space or remove reference images, then try again.'); }
+}
+export function exportDemoData(projects: Project[], activeId: string | null): string {
+  return JSON.stringify({ version: 1, projects: changedProjects(projects, []), activeId }, null, 2) + '\n';
+}
+
+export function parseDemoData(source: unknown): Project[] {
+  if (!isObject(source) || source['version'] !== 1 || !Array.isArray(source['projects'])) return [];
+  return source['projects'].filter(isProject).filter(project => !BASE_PROJECT_IDS.has(project.id) || BASE_PROJECTS.some(base => base.id === project.id && project.status === 'Base'))
+    .map(project => ({ ...project, logoDark: project.logoDark ?? null, logoLight: project.logoLight ?? null, thumbnail: project.thumbnail ?? null }));
+}
+
+export function mergeDemoProjects(current: Project[], demo: Project[], storedIds: string[], removedDemoIds: string[]): Project[] {
+  const skip = new Set([...storedIds, ...removedDemoIds]);
+  const merged = [...current];
+  for (const project of demo) {
+    if (skip.has(project.id)) continue;
+    const index = merged.findIndex(existing => existing.id === project.id);
+    if (index >= 0) merged[index] = { ...merged[index], ...project, status: merged[index].status };
+    else if (!merged.some(existing => existing.name.toLowerCase() === project.name.toLowerCase())) merged.push(project);
+  }
+  return merged;
 }

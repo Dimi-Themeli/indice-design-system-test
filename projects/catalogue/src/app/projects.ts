@@ -24,6 +24,7 @@ export class Projects {
   readonly open = output<string>();
   readonly remove = output<{ project: Project; trigger: HTMLButtonElement }>();
   readonly navigate = output<'create' | 'library' | 'manage'>();
+  readonly exportData = output<void>();
   readonly modes = PROJECT_MODES;
   readonly platforms = PROJECT_PLATFORMS;
   readonly draft = signal<ProjectDraft>({ name: '', customer: '', description: '', figmaUrl: '', modes: 'Light', platform: 'Desktop app' });

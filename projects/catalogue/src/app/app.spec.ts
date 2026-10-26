@@ -8,7 +8,7 @@ import { SocialButtonCatalogue } from './social-buttons';
 import { FieldCatalogue } from './fields';
 import { UseIt } from './use-it';
 import { buildConfiguredUsage, buildUsageExample, parseUsageSettings, USAGE } from './usage-data';
-import { BASE_PROJECTS, loadProjectState, parseTokenFile, projectCssVariables, PROJECT_STORAGE_KEY, saveProjectState, validFigmaUrl } from './project-data';
+import { BASE_PROJECTS, exportDemoData, loadProjectState, mergeDemoProjects, parseDemoData, parseTokenFile, projectCssVariables, PROJECT_STORAGE_KEY, saveProjectState, validFigmaUrl } from './project-data';
 import { Projects } from './projects';
 
 describe('App', () => {
@@ -149,6 +149,32 @@ describe('App', () => {
     expect(loadProjectState().projects[0].tokens).not.toBeNull();
     expect(loadProjectState({ getItem: () => '{' }).warning).toBeTruthy();
     expect(() => saveProjectState([], null, { setItem: () => { throw new Error('Quota'); } })).toThrow('could not be saved');
+  });
+
+  it('exports demo data and merges the bundled demo projects for every visitor without overriding local changes', async () => {
+    const novio = { ...structuredClone(BASE_PROJECTS[0]), id: 'novio', name: 'Novio', status: 'Draft' as const, tokens: { color: '#005b97' }, logoDark: 'data:image/png;base64,AA==' };
+    const iamWithLogo = { ...structuredClone(BASE_PROJECTS[0]), logoLight: 'data:image/png;base64,AQ==' };
+    const exported = JSON.parse(exportDemoData([iamWithLogo, novio], 'novio'));
+    expect(exported.projects.map((project: { id: string }) => project.id)).toEqual(['iam', 'novio']);
+    expect(exported.activeId).toBe('novio');
+    const demo = parseDemoData(exported);
+    expect(parseDemoData({ version: 2, projects: [novio] })).toEqual([]);
+    expect(mergeDemoProjects(structuredClone(BASE_PROJECTS), demo, [], []).map(project => [project.id, project.logoLight ?? project.logoDark])).toEqual([['iam', iamWithLogo.logoLight], ['novio', novio.logoDark]]);
+    expect(mergeDemoProjects(structuredClone(BASE_PROJECTS), demo, ['novio'], []).map(project => project.id)).toEqual(['iam']);
+    expect(mergeDemoProjects(structuredClone(BASE_PROJECTS), demo, [], ['novio']).map(project => project.id)).toEqual(['iam']);
+
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    app.setRole('designer');
+    app.applyDemoProjects(demo);
+    fixture.detectChanges();
+    expect(app.projects().map(project => project.id)).toEqual(['iam', 'novio']);
+    app.activateProject('novio');
+    expect(JSON.parse(localStorage.getItem(PROJECT_STORAGE_KEY)!).projects).toEqual([]);
+    app.requestProjectDeletion({ project: app.projects()[1], trigger: document.createElement('button') }, { showModal: () => {} } as HTMLDialogElement);
+    app.confirmProjectDeletion({ close: () => {} } as HTMLDialogElement);
+    expect(JSON.parse(localStorage.getItem(PROJECT_STORAGE_KEY)!).removedDemoIds).toEqual(['novio']);
+    expect(loadProjectState().removedDemoIds).toEqual(['novio']);
   });
 
   it('creates a project with only a name and token JSON, and rejects missing or invalid required data', async () => {

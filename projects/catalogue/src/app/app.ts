@@ -6,7 +6,7 @@ import { IconButtonCatalogue } from './icon-buttons';
 import { SocialButtonCatalogue } from './social-buttons';
 import { FieldCatalogue } from './fields';
 import { Projects } from './projects';
-import { Project, loadProjectState, projectCssVariables, projectTokenList, saveProjectState } from './project-data';
+import { DEMO_DATA_URL, Project, exportDemoData, loadProjectState, mergeDemoProjects, parseDemoData, projectCssVariables, projectTokenList, saveProjectState } from './project-data';
 import { IAM_TOKENS } from './iam-tokens';
 
 // The workspace chrome always uses the IAM palette; project palettes only theme the component previews.
@@ -33,6 +33,8 @@ export class App {
   readonly role = signal<'designer' | 'developer'>('developer');
   private readonly savedProjects = loadProjectState();
   readonly projects = signal<Project[]>(this.savedProjects.projects);
+  private demoProjects: Project[] = [];
+  private removedDemoIds = [...this.savedProjects.removedDemoIds];
   readonly activeProjectId = signal<string | null>(this.savedProjects.activeId);
   readonly currentProject = computed(() => this.projects().find(project => project.id === this.activeProjectId()) ?? null);
   readonly projectTheme = computed(() => projectCssVariables(this.currentProject()?.tokens ?? null));
@@ -74,6 +76,37 @@ export class App {
   constructor() {
     for (const [name, value] of Object.entries(APP_THEME)) document.documentElement.style.setProperty(name, value);
     afterNextRender(() => this.openWelcome());
+    void this.loadDemoProjects();
+  }
+
+  async loadDemoProjects() {
+    try {
+      const response = await fetch(DEMO_DATA_URL, { cache: 'no-cache' });
+      if (!response.ok) return;
+      this.applyDemoProjects(parseDemoData(await response.json()));
+    } catch { /* The demo file is optional. */ }
+  }
+
+  applyDemoProjects(demo: Project[]) {
+    this.demoProjects = demo;
+    if (!demo.length) return;
+    this.projects.set(mergeDemoProjects(this.projects(), demo, this.savedProjects.storedIds, this.removedDemoIds));
+    const requested = this.savedProjects.requestedActiveId;
+    if (requested && this.activeProjectId() === this.savedProjects.activeId && this.projects().some(project => project.id === requested)) {
+      this.activeProjectId.set(requested);
+      this.previewProjectId.set(requested);
+    }
+  }
+
+  exportDemoData() {
+    if (this.role() !== 'designer') return;
+    const url = URL.createObjectURL(new Blob([exportDemoData(this.projects(), this.activeProjectId())], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'demo-projects.json';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url));
+    this.showNotice('Demo data exported');
   }
 
   openWelcome() {
@@ -130,7 +163,7 @@ export class App {
 
   private commitProjects(projects: Project[], activeId: string | null): boolean {
     try {
-      saveProjectState(projects, activeId);
+      saveProjectState(projects, activeId, undefined, this.demoProjects, this.removedDemoIds);
       this.projects.set(projects);
       this.activeProjectId.set(activeId);
       this.projectError.set('');
@@ -201,7 +234,9 @@ export class App {
     if (!project || project.status === 'Base' || this.role() !== 'designer') return;
     const remaining = this.projects().filter(existing => existing.id !== project.id);
     const activeId = this.activeProjectId() === project.id ? remaining[0]?.id ?? null : this.activeProjectId();
-    if (!this.commitProjects(remaining, activeId)) return;
+    const previousRemoved = this.removedDemoIds;
+    if (this.demoProjects.some(demo => demo.id === project.id)) this.removedDemoIds = [...new Set([...previousRemoved, project.id])];
+    if (!this.commitProjects(remaining, activeId)) { this.removedDemoIds = previousRemoved; return; }
     this.previewProjectId.set(activeId);
     dialog.close();
     this.showNotice('Project deleted');
