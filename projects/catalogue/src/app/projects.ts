@@ -2,6 +2,7 @@ import { Component, computed, effect, input, output, signal } from '@angular/cor
 import { Icon } from './icon';
 import { Project, PROJECT_MODES, PROJECT_PLATFORMS, parseTokenFile, validFigmaUrl } from './project-data';
 
+type AssetKey = 'dark' | 'light' | 'thumbnail';
 interface ProjectDraft { name: string; customer: string; description: string; figmaUrl: string; modes: string; platform: string; }
 
 @Component({
@@ -32,15 +33,16 @@ export class Projects {
   readonly tokenDocument = signal<ReturnType<typeof parseTokenFile> | null>(null);
   readonly tokenError = signal('');
   readonly formError = signal('');
-  readonly logos = signal<{ dark: string | null; light: string | null }>({ dark: null, light: null });
-  readonly logoErrors = signal<{ dark: string; light: string }>({ dark: '', light: '' });
-  readonly readingLogos = signal<{ dark: boolean; light: boolean }>({ dark: false, light: false });
+  readonly logos = signal<Record<AssetKey, string | null>>({ dark: null, light: null, thumbnail: null });
+  readonly logoErrors = signal<Record<AssetKey, string>>({ dark: '', light: '', thumbnail: '' });
+  readonly readingLogos = signal<Record<AssetKey, boolean>>({ dark: false, light: false, thumbnail: false });
   readonly images = signal<string[]>([]);
   readonly imageError = signal('');
   readonly readingTokens = signal(false);
   readonly readingImages = signal(false);
+  readonly readingAssets = computed(() => Object.values(this.readingLogos()).some(Boolean));
   private tokenRead = 0;
-  private logoRead = { dark: 0, light: 0 };
+  private logoRead: Record<AssetKey, number> = { dark: 0, light: 0, thumbnail: 0 };
   private imageRead = 0;
 
   constructor() {
@@ -50,6 +52,7 @@ export class Projects {
       this.tokenRead++;
       this.logoRead.dark++;
       this.logoRead.light++;
+      this.logoRead.thumbnail++;
       this.imageRead++;
       this.draft.set(project
         ? { name: project.name, customer: project.customer, description: project.description, figmaUrl: project.figmaUrl, modes: project.modes, platform: project.platform }
@@ -58,9 +61,9 @@ export class Projects {
       this.tokenDocument.set(project?.tokens ? { tokens: project.tokens, count: project.tokenCount } : null);
       this.tokenError.set('');
       this.formError.set('');
-      this.logos.set({ dark: project?.logoDark ?? null, light: project?.logoLight ?? null });
-      this.logoErrors.set({ dark: '', light: '' });
-      this.readingLogos.set({ dark: false, light: false });
+      this.logos.set({ dark: project?.logoDark ?? null, light: project?.logoLight ?? null, thumbnail: project?.thumbnail ?? null });
+      this.logoErrors.set({ dark: '', light: '', thumbnail: '' });
+      this.readingLogos.set({ dark: false, light: false, thumbnail: false });
       this.images.set(project ? [...project.images] : []);
       this.imageError.set('');
       this.readingTokens.set(false);
@@ -98,7 +101,7 @@ export class Projects {
     }
   }
 
-  async selectLogoFile(theme: 'dark' | 'light', file: File | null) {
+  async selectLogoFile(theme: AssetKey, file: File | null) {
     const version = ++this.logoRead[theme];
     this.logos.update(logos => ({ ...logos, [theme]: null }));
     this.logoErrors.update(errors => ({ ...errors, [theme]: '' }));
@@ -106,7 +109,7 @@ export class Projects {
     this.readingLogos.update(reading => ({ ...reading, [theme]: false }));
     if (!file) return;
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 1024 * 1024 || file.size === 0) {
-      this.logoErrors.update(errors => ({ ...errors, [theme]: 'Choose one PNG, JPEG or WebP logo smaller than 1 MB.' }));
+      this.logoErrors.update(errors => ({ ...errors, [theme]: theme === 'thumbnail' ? 'Choose one PNG, JPEG or WebP image smaller than 1 MB.' : 'Choose one PNG, JPEG or WebP logo smaller than 1 MB.' }));
       return;
     }
     this.readingLogos.update(reading => ({ ...reading, [theme]: true }));
@@ -125,7 +128,7 @@ export class Projects {
     }
   }
 
-  clearLogo(theme: 'dark' | 'light') {
+  clearLogo(theme: AssetKey) {
     this.logoRead[theme]++;
     this.logos.update(logos => ({ ...logos, [theme]: null }));
     this.logoErrors.update(errors => ({ ...errors, [theme]: '' }));
@@ -167,7 +170,7 @@ export class Projects {
   }
 
   submit() {
-    if (!this.canEdit() || this.readingTokens() || this.readingLogos().dark || this.readingLogos().light || this.readingImages()) return;
+    if (!this.canEdit() || this.readingTokens() || this.readingAssets() || this.readingImages()) return;
     const editing = this.page() === 'edit' ? this.editing() : null;
     if (this.page() === 'edit' && !editing) return;
     const draft = this.draft();
@@ -177,10 +180,10 @@ export class Projects {
     if (this.projects().some(project => project.id !== editing?.id && project.name.toLowerCase() === name.toLowerCase())) { this.formError.set('A project with this name already exists.'); return; }
     if (!document) { this.formError.set('Choose a valid token JSON file.'); return; }
     if (!validFigmaUrl(draft.figmaUrl)) { this.formError.set('Use an HTTPS Figma link, or leave the link empty.'); return; }
-    if (this.logoErrors().dark || this.logoErrors().light) { this.formError.set('Remove or replace the invalid theme logo.'); return; }
+    if (this.logoErrors().dark || this.logoErrors().light || this.logoErrors().thumbnail) { this.formError.set('Remove or replace the invalid logo or thumbnail image.'); return; }
     if (this.imageError()) { this.formError.set('Remove or replace the invalid reference images.'); return; }
     this.formError.set('');
-    const fields = { name, customer: draft.customer.trim(), description: draft.description.trim(), figmaUrl: draft.figmaUrl.trim(), logoDark: this.logos().dark, logoLight: this.logos().light, modes: draft.modes, platform: draft.platform, images: this.images(), tokenFileName: this.tokenFileName(), tokens: document.tokens, tokenCount: document.count };
+    const fields = { name, customer: draft.customer.trim(), description: draft.description.trim(), figmaUrl: draft.figmaUrl.trim(), logoDark: this.logos().dark, logoLight: this.logos().light, thumbnail: this.logos().thumbnail, modes: draft.modes, platform: draft.platform, images: this.images(), tokenFileName: this.tokenFileName(), tokens: document.tokens, tokenCount: document.count };
     if (editing) this.save.emit({ ...editing, ...fields });
     else this.create.emit({ id: crypto.randomUUID(), ...fields, createdAt: new Date().toISOString(), status: 'Draft' });
   }

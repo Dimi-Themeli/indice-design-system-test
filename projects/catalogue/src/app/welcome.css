@@ -1,4 +1,4 @@
-.welcome-dialog { width: min(620px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 36px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); overflow: auto; }
+.welcome-dialog { width: min(1040px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 36px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); overflow: auto; }
 .welcome-dialog::backdrop { background: var(--overlay); }
 .welcome-brand { display: flex; align-items: center; min-height: 36px; }
 .welcome-brand img { display: block; width: 144px; height: auto; max-width: 100%; }
@@ -11,3 +11,14 @@
 .welcome-signoff { margin: 28px 0 0; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); text-align: center; font-size: 13px; }
 .welcome-dialog button:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 @media (max-width: 600px) { .welcome-dialog { padding: 24px; } .welcome-dialog h2 { margin-top: 28px; font-size: 24px; } .welcome-roles { grid-template-columns: 1fr; } }
+.welcome-steps { display: flex; gap: 8px 24px; flex-wrap: wrap; margin: 28px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 12px; font-weight: 600; }
+.welcome-steps li { display: flex; align-items: center; gap: 8px; padding-bottom: 6px; border-bottom: 2px solid transparent; }
+.welcome-steps span { font-variant-numeric: tabular-nums; }
+.welcome-steps li.current { border-bottom-color: var(--action); color: var(--ink); }
+.welcome-steps + h2 { margin-top: 20px; }
+.welcome-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line); }
+.welcome-actions .project-text-link { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.welcome-actions .welcome-open:disabled { opacity: .5; cursor: not-allowed; }
+.welcome-brand, .welcome-steps { justify-content: center; }
+.welcome-dialog > h2, #welcome-intro, .welcome-signoff { text-align: center; }
+#welcome-intro { margin-inline: auto; }

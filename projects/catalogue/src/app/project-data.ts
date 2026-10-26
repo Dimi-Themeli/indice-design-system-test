@@ -1,3 +1,4 @@
+import { DesignToken } from 'indice-tokens';
 import { IAM_TOKENS } from './iam-tokens';
 
 export interface Project {
@@ -10,6 +11,7 @@ export interface Project {
   figmaUrl: string;
   logoDark: string | null;
   logoLight: string | null;
+  thumbnail?: string | null;
   images: string[];
   tokenFileName: string;
   tokens: Record<string, unknown> | null;
@@ -103,6 +105,32 @@ export function projectCssVariables(tokens: Record<string, unknown> | null): Rec
   return variables;
 }
 
+const FONT_WEIGHTS: Record<string, number> = { Light: 300, Regular: 400, Medium: 500, Semibold: 600, Bold: 700, ExtraBold: 800 };
+
+export function projectTokenList(tokens: Record<string, unknown> | null): DesignToken[] {
+  const collection = tokens?.['Primitive/Indice'];
+  if (!isObject(collection)) return [];
+  const list: DesignToken[] = [];
+  function visit(node: Record<string, unknown>, segments: string[]) {
+    if (Object.hasOwn(node, '$value')) {
+      const value = node['$value'];
+      if (typeof value !== 'string' && typeof value !== 'number') return;
+      const type = String(node['$type'] ?? '');
+      let cssValue = String(value);
+      if (type === 'number') cssValue = `${value}px`;
+      if (segments[0] === 'fonts' && segments[1] === 'weight') cssValue = String(FONT_WEIGHTS[String(value)] ?? value);
+      if (segments[0] === 'fonts' && segments[1] === 'family') cssValue = `"${value}"`;
+      list.push({ name: segments.join('.'), variable: `--indice-${segments.join('-')}`, category: segments[0], group: segments.slice(0, -1).join('.'), label: segments.at(-1) ?? '', value, cssValue, type });
+      return;
+    }
+    for (const [key, child] of Object.entries(node)) {
+      if (!key.startsWith('$') && key !== '-' && isObject(child)) visit(child, [...segments, key]);
+    }
+  }
+  visit(collection, []);
+  return list.filter(token => token.category && token.group);
+}
+
 export function validFigmaUrl(value: string): boolean {
   if (!value.trim()) return true;
   try {
@@ -120,6 +148,7 @@ function isProject(value: unknown): value is Project {
     && validFigmaUrl(String(value['figmaUrl']))
     && (value['logoDark'] === undefined || value['logoDark'] === null || isUploadedImage(value['logoDark']))
     && (value['logoLight'] === undefined || value['logoLight'] === null || isUploadedImage(value['logoLight']))
+    && (value['thumbnail'] === undefined || value['thumbnail'] === null || isUploadedImage(value['thumbnail']))
     && (value['logo'] === undefined || value['logo'] === null || isUploadedImage(value['logo']))
     && Array.isArray(value['images']) && value['images'].every(image => typeof image === 'string' && (/^data:image\/(png|jpeg|webp);base64,/.test(image) || /^assets\/theme-company-[a-d]\.png$/.test(image)))
     && typeof value['tokenCount'] === 'number' && Number.isSafeInteger(value['tokenCount']) && value['tokenCount'] >= 0

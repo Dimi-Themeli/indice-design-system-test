@@ -1,10 +1,24 @@
 <a class="skip-link" href="#main">Skip to content</a>
 <dialog #welcome class="welcome-dialog" aria-labelledby="welcome-title" aria-describedby="welcome-intro" (keydown.escape)="welcome.close()" (close)="role() === 'designer' ? designerRole.focus() : developerRole.focus()">
   <div class="welcome-brand"><img src="assets/INDICE-logo-text-only.svg" alt="Indice" width="160" height="32" /></div>
-  <h2 id="welcome-title" tabindex="-1" autofocus>Welcome.... you :)</h2>
-  <p id="welcome-intro">One shared design system, from design to development. Explore the component library or create a branded project, together.</p>
-  <div class="welcome-roles" role="group" aria-label="Choose your role"><button type="button" (click)="setRole('developer'); welcome.close()"><app-icon name="code" />I am a developer</button><button type="button" (click)="setRole('designer'); welcome.close()"><app-icon name="layers" />I am a designer</button></div>
-  <p class="welcome-signoff">.... and always an Indicer! &lt;3</p>
+  <ol class="welcome-steps" aria-label="Setup steps"><li [class.current]="welcomeStep() === 1" [attr.aria-current]="welcomeStep() === 1 ? 'step' : null"><span>01</span>Role</li><li [class.current]="welcomeStep() === 2" [attr.aria-current]="welcomeStep() === 2 ? 'step' : null"><span>02</span>Project</li></ol>
+  @if (welcomeStep() === 1) {
+    <h2 id="welcome-title" tabindex="-1" autofocus>Welcome.... you :)</h2>
+    <p id="welcome-intro">One shared design system, from design to development. Explore the component library or create a branded project, together.</p>
+    <div class="welcome-roles" role="group" aria-label="Choose your role"><button type="button" (click)="chooseRole('developer')"><app-icon name="code" />I am a developer</button><button type="button" (click)="chooseRole('designer')"><app-icon name="layers" />I am a designer</button></div>
+    <p class="welcome-signoff">.... and always an Indicer! &lt;3</p>
+  } @else {
+    <h2 id="welcome-title" tabindex="-1">Choose a project</h2>
+    <p id="welcome-intro">Each project themes the component library with its own design tokens. You can switch project at any time from the header.</p>
+  <div class="theme-options" role="group" aria-label="Available projects">
+    @for (project of projects(); track project.id) {
+      <label class="theme-option" [class.is-selected]="previewProjectId() === project.id"><input type="radio" name="welcome-project-choice" [value]="project.id" [checked]="previewProjectId() === project.id" (change)="selectProjectPreview(project.id)" [attr.aria-label]="project.name + ', ' + project.modes + ', ' + project.platform + ', ' + project.status" />@if (project.thumbnail) { <div class="theme-preview theme-thumbnail-preview" [style.background-image]="'url(' + project.thumbnail + ')'">@if (project.logoDark ?? project.logoLight) { <img [src]="(project.logoDark ?? project.logoLight)!" [alt]="project.name + ' logo'" /> }</div> } @else if (project.logoLight) { <img class="theme-preview theme-logo-preview" [src]="project.logoLight" [alt]="project.name + ' logo'" width="640" height="400" /> } @else if (project.images[0]) { <img class="theme-preview" [src]="project.images[0]" alt="" width="640" height="400" /> } @else { <div class="theme-preview theme-placeholder"><app-icon name="layers" /></div> }<span class="theme-details"><span class="theme-name">{{ project.name }}</span><span class="theme-metadata">{{ project.modes }} <span aria-hidden="true">/</span> {{ project.platform }}</span><span class="theme-status">{{ activeProjectId() === project.id ? 'Current project / ' : '' }}{{ project.status }}</span></span></label>
+    } @empty {
+      <div class="project-chooser-empty">No projects yet</div>
+    }
+  </div>
+    <footer class="theme-dialog-actions welcome-actions"><button type="button" class="project-text-link" (click)="backToRoleStep()"><app-icon name="back" />Back</button><button type="button" class="welcome-open" [disabled]="!selectedProjectPreview()" (click)="applyProject(welcome)">Open project</button></footer>
+  }
 </dialog>
 <div class="demo-ribbon" aria-label="Demo workspace"><span class="ribbon-title">INDICE / DEMO</span><div class="role-switcher" role="group" aria-labelledby="demo-role-label"><span id="demo-role-label" class="role-label">Demo role</span><div class="role-options"><label class="role-choice"><input #designerRole type="radio" name="demo-role" value="designer" [checked]="role() === 'designer'" (change)="setRole('designer')" /><span>Designer</span></label><label class="role-choice"><input #developerRole type="radio" name="demo-role" value="developer" [checked]="role() === 'developer'" (change)="setRole('developer')" /><span>Developer</span></label></div></div></div>
 <aside #sidebar class="sidebar" [class.open]="menuOpen()" aria-label="Catalogue navigation">
@@ -41,35 +55,23 @@
 <div class="workspace">
   <header class="topbar" [hidden]="view() === 'create' || view() === 'edit'">
     <button class="icon-button mobile-menu" type="button" title="Toggle navigation" aria-label="Toggle navigation" [attr.aria-expanded]="menuOpen()" (click)="menuOpen.set(!menuOpen())"><app-icon [name]="menuOpen() ? 'close' : 'menu'" /></button>
-    <div class="system-context">@if (currentProject()?.logoLight; as logo) { <img class="project-header-logo" [src]="logo" [alt]="(currentProject()?.name ?? 'Project') + ' logo'" /> }<div class="system-name">Design System <span class="system-version">0.0</span></div><div class="theme-context"><span>Project: {{ currentProject()?.name ?? 'Base library' }}</span><button #themeTrigger type="button" class="source-link theme-change" (click)="openThemeChooser(themeChooser)"><app-icon name="change" /><span>Change project</span></button></div></div>
+    <div class="system-context"><div class="system-name">Design System <span class="system-version">0.0</span></div><div class="theme-context"><label class="project-select"><span>Project</span><select name="active-project" aria-label="Current project" (change)="selectProject($any($event.target))">@for (project of projects(); track project.id) { <option [value]="project.id" [selected]="activeProjectId() === project.id">{{ project.name }}</option> }</select><app-icon class="project-select-chevron" name="chevron" /></label></div></div>
     <div class="topbar-actions" [style.display]="role() === 'designer' ? null : 'none'">
       <button type="button" class="add-project" [disabled]="role() !== 'designer'" title="Add project" (click)="showProjects('create')"><app-icon name="add" />Add project</button>
       <button #manageTrigger type="button" class="icon-button manage-projects" aria-label="Manage projects" title="Manage projects" (click)="showProjects('manage')"><app-icon name="manage" /></button>
     </div>
   </header>
-  <dialog #themeChooser class="theme-dialog" aria-labelledby="theme-chooser-title" (click)="onThemeBackdrop($event)" (keydown.escape)="themeChooser.close()" (close)="view() === 'library' ? themeTrigger.focus() : mainContent.focus({ preventScroll: true })">
-    <header class="theme-dialog-header"><h2 id="theme-chooser-title">Change project</h2><button type="button" class="icon-button" aria-label="Close project chooser" title="Close project chooser" (click)="themeChooser.close()"><app-icon name="close" /></button></header>
-    @if (projectError()) { <p class="project-error" role="alert">{{ projectError() }}</p> }
-    <div class="theme-options" role="group" aria-label="Available projects">
-      @for (project of projects(); track project.id) {
-        <label class="theme-option" [class.is-selected]="previewProjectId() === project.id"><input type="radio" name="project-choice" [value]="project.id" [checked]="previewProjectId() === project.id" (change)="selectProjectPreview(project.id)" [attr.aria-label]="project.name + ', ' + project.modes + ', ' + project.platform + ', ' + project.status" />@if (project.logoLight) { <img class="theme-preview theme-logo-preview" [src]="project.logoLight" [alt]="project.name + ' logo'" width="640" height="400" /> } @else if (project.images[0]) { <img class="theme-preview" [src]="project.images[0]" alt="" width="640" height="400" /> } @else { <div class="theme-preview theme-placeholder"><app-icon name="layers" /></div> }<span class="theme-details"><span class="theme-name">{{ project.name }}</span><span class="theme-metadata">{{ project.modes }} <span aria-hidden="true">/</span> {{ project.platform }}</span><span class="theme-status">{{ activeProjectId() === project.id ? 'Current project / ' : '' }}{{ project.status }}</span></span></label>
-      } @empty {
-        <div class="project-chooser-empty">No projects yet</div>
-      }
-    </div>
-    <footer class="theme-dialog-actions"><span role="status">{{ selectedProjectPreview()?.name ?? 'No project selected' }}<small>{{ selectedProjectPreview()?.status === 'Base' ? 'Base design system' : selectedProjectPreview() ? 'Uploaded project' : '' }}</small></span><div class="project-chooser-actions"><button type="button" class="project-text-link" (click)="themeChooser.close(); showProjects('manage')">Manage projects</button><button type="button" [disabled]="!selectedProjectPreview()" (click)="applyProject(themeChooser)">Open project</button></div></footer>
-  </dialog>
   <dialog #deleteDialog class="theme-dialog delete-project-dialog" aria-labelledby="delete-project-title" (click)="onThemeBackdrop($event)" (keydown.escape)="deleteDialog.close()" (close)="closeProjectDeletion(manageTrigger)">
     <header class="theme-dialog-header"><h2 id="delete-project-title">Delete project?</h2><button type="button" class="icon-button" aria-label="Close delete confirmation" title="Close delete confirmation" (click)="deleteDialog.close()"><app-icon name="close" /></button></header>
     @if (pendingDeletion(); as project) { <p class="delete-project-message">Delete <strong>{{ project.name }}</strong> and its saved tokens and reference images from this browser? This cannot be undone.</p> }
     @if (projectError()) { <p class="project-error" role="alert">{{ projectError() }}</p> }
     <footer class="theme-dialog-actions"><button type="button" class="project-text-link" autofocus (click)="deleteDialog.close()">Cancel</button><button type="button" class="confirm-delete" (click)="confirmProjectDeletion(deleteDialog)"><app-icon name="trash" />Delete project</button></footer>
   </dialog>
-  <main #mainContent id="main" tabindex="-1">
+  <main #mainContent id="main" tabindex="-1" [style]="projectTheme()">
     @if (view() !== 'library') {
       <app-projects [page]="view() === 'create' ? 'create' : view() === 'edit' ? 'edit' : 'manage'" [projects]="projects()" [editing]="editingProject()" [activeId]="activeProjectId()" [canEdit]="role() === 'designer'" [error]="projectError()" (create)="createProject($event)" (save)="saveProject($event)" (edit)="editProject($event)" (open)="activateProject($event)" (remove)="requestProjectDeletion($event, deleteDialog)" (navigate)="showProjects($event)" />
     } @else {
-    <div class="page-heading"><div><div class="eyebrow">INDICE / {{ isComponent() ? 'COMPONENTS' : 'FOUNDATIONS' }}</div><h1>{{ title() }}<span class="heading-dot">.</span></h1></div><span class="total">@if (category() === 'buttons') { <strong>7</strong> variants / <strong>28</strong> states } @else if (category() === 'icon-buttons') { <strong>4</strong> variants / <strong>4</strong> sizes / <strong>64</strong> states } @else if (category() === 'social-buttons') { <strong>4</strong> providers / <strong>12</strong> states } @else if (category() === 'fields') { <strong>11</strong> variants / <strong>2</strong> layouts } @else { <strong>{{ tokens.length }}</strong> primitive tokens }</span></div>
+    <div class="page-heading"><div><div class="eyebrow">INDICE / {{ isComponent() ? 'COMPONENTS' : 'FOUNDATIONS' }}</div><h1>{{ title() }}<span class="heading-dot">.</span></h1></div><span class="total">@if (category() === 'buttons') { <strong>7</strong> variants / <strong>28</strong> states } @else if (category() === 'icon-buttons') { <strong>4</strong> variants / <strong>4</strong> sizes / <strong>64</strong> states } @else if (category() === 'social-buttons') { <strong>4</strong> providers / <strong>12</strong> states } @else if (category() === 'fields') { <strong>11</strong> variants / <strong>2</strong> layouts } @else { <strong>{{ tokens().length }}</strong> primitive tokens }</span></div>
     @if (category() === 'buttons') {
       <app-button-catalogue />
     } @else if (category() === 'icon-buttons') {

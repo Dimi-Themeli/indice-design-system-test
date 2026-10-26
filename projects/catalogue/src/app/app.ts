@@ -1,4 +1,4 @@
-import { Component, ElementRef, afterNextRender, computed, effect, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, afterNextRender, computed, signal, viewChild } from '@angular/core';
 import { TOKENS, DesignToken } from 'indice-tokens';
 import { Icon } from './icon';
 import { ButtonCatalogue } from './buttons';
@@ -6,7 +6,11 @@ import { IconButtonCatalogue } from './icon-buttons';
 import { SocialButtonCatalogue } from './social-buttons';
 import { FieldCatalogue } from './fields';
 import { Projects } from './projects';
-import { Project, loadProjectState, projectCssVariables, saveProjectState } from './project-data';
+import { Project, loadProjectState, projectCssVariables, projectTokenList, saveProjectState } from './project-data';
+import { IAM_TOKENS } from './iam-tokens';
+
+// The workspace chrome always uses the IAM palette; project palettes only theme the component previews.
+const APP_THEME = projectCssVariables(IAM_TOKENS);
 
 @Component({
   imports: [Icon, ButtonCatalogue, IconButtonCatalogue, SocialButtonCatalogue, FieldCatalogue, Projects],
@@ -23,7 +27,6 @@ export class App {
     { id: 'border', title: 'Borders', number: '04' },
     { id: 'containers', title: 'Containers', number: '05' },
   ];
-  readonly tokens = TOKENS;
   readonly category = signal('colours');
   readonly query = signal('');
   readonly copyMode = signal<'variable' | 'value'>('variable');
@@ -32,6 +35,12 @@ export class App {
   readonly projects = signal<Project[]>(this.savedProjects.projects);
   readonly activeProjectId = signal<string | null>(this.savedProjects.activeId);
   readonly currentProject = computed(() => this.projects().find(project => project.id === this.activeProjectId()) ?? null);
+  readonly projectTheme = computed(() => projectCssVariables(this.currentProject()?.tokens ?? null));
+  readonly tokens = computed<readonly DesignToken[]>(() => {
+    const list = projectTokenList(this.currentProject()?.tokens ?? null);
+    return list.length ? list : TOKENS;
+  });
+  readonly welcomeStep = signal<1 | 2>(1);
   readonly previewProjectId = signal<string | null>(this.savedProjects.activeId);
   readonly selectedProjectPreview = computed(() => this.projects().find(project => project.id === this.previewProjectId()) ?? null);
   readonly view = signal<'library' | 'create' | 'edit' | 'manage'>('library');
@@ -48,7 +57,7 @@ export class App {
   readonly title = computed(() => this.category() === 'buttons' ? 'Buttons' : this.category() === 'icon-buttons' ? 'Icon Buttons' : this.category() === 'social-buttons' ? 'Social Media Buttons' : this.category() === 'fields' ? 'Input Field' : this.query().trim() ? 'Search results' : this.categories.find(item => item.id === this.category())!.title);
   readonly visible = computed(() => {
     const query = this.query().trim().toLowerCase();
-    return TOKENS.filter(token => query
+    return this.tokens().filter(token => query
       ? `${token.name} ${token.variable} ${token.value} ${token.cssValue}`.toLowerCase().includes(query)
       : token.category === this.category());
   });
@@ -63,30 +72,38 @@ export class App {
   });
 
   constructor() {
-    effect(onCleanup => {
-      const variables = projectCssVariables(this.currentProject()?.tokens ?? null);
-      const root = document.documentElement;
-      const previous = new Map<string, { value: string; priority: string }>();
-      for (const [name, value] of Object.entries(variables)) {
-        previous.set(name, { value: root.style.getPropertyValue(name), priority: root.style.getPropertyPriority(name) });
-        root.style.setProperty(name, value);
-      }
-      onCleanup(() => {
-        for (const [name, original] of previous) {
-          if (original.value) root.style.setProperty(name, original.value, original.priority);
-          else root.style.removeProperty(name);
-        }
-      });
-    });
+    for (const [name, value] of Object.entries(APP_THEME)) document.documentElement.style.setProperty(name, value);
     afterNextRender(() => this.openWelcome());
   }
 
   openWelcome() {
+    this.welcomeStep.set(1);
     const dialog = this.welcomeDialog().nativeElement;
     if (typeof dialog.showModal === 'function' && !dialog.open) dialog.showModal();
   }
 
-  count(category: string) { return TOKENS.filter(token => token.category === category).length; }
+  chooseRole(role: 'designer' | 'developer') {
+    this.setRole(role);
+    this.previewProjectId.set(this.activeProjectId() ?? this.projects()[0]?.id ?? null);
+    this.welcomeStep.set(2);
+    setTimeout(() => document.getElementById('welcome-title')?.focus());
+  }
+
+  backToRoleStep() {
+    this.welcomeStep.set(1);
+    setTimeout(() => document.getElementById('welcome-title')?.focus());
+  }
+
+  selectProject(select: HTMLSelectElement) {
+    const id = select.value;
+    if (!this.projects().some(project => project.id === id) || !this.commitProjects(this.projects(), id)) {
+      select.value = this.activeProjectId() ?? '';
+      return;
+    }
+    this.previewProjectId.set(id);
+  }
+
+  count(category: string) { return this.tokens().filter(token => token.category === category).length; }
 
   collapseAll(sidebar: HTMLElement) {
     sidebar.querySelectorAll<HTMLDetailsElement>('details').forEach(section => section.open = false);
@@ -96,13 +113,6 @@ export class App {
     this.role.set(role);
     this.menuOpen.set(false);
     if (role === 'developer' && (this.view() === 'create' || this.view() === 'edit')) this.view.set('manage');
-  }
-
-  openThemeChooser(dialog: HTMLDialogElement) {
-    this.menuOpen.set(false);
-    const activeId = this.activeProjectId();
-    this.previewProjectId.set(this.projects().some(project => project.id === activeId) ? activeId : this.projects()[0]?.id ?? null);
-    dialog.showModal();
   }
 
   showProjects(view: 'library' | 'create' | 'manage') {

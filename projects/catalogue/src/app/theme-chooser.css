@@ -1,11 +1,9 @@
-.theme-change { border: 0; padding: 6px 0; background: transparent; }
-.theme-context .theme-change span { display: inline; }
 .theme-dialog { width: min(1040px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 24px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); overflow: auto; }
 .theme-dialog::backdrop { background: var(--overlay); }
 .theme-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .theme-dialog-header h2 { text-transform: none; font-size: 18px; }
 .theme-dialog-header .icon-button { flex-shrink: 0; width: 36px; height: 36px; }
-.theme-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 20px; margin-top: 24px; }
+.theme-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 20px; margin-top: 24px; }
 .theme-option { display: block; position: relative; min-width: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); cursor: pointer; }
 .theme-option:hover { border-color: var(--border-strong); }
 .theme-option.is-selected { border-color: var(--action); box-shadow: 0 0 0 1px var(--action); }
@@ -21,4 +19,10 @@
 .theme-dialog-actions > span { min-width: 0; overflow-wrap: anywhere; font-size: 13px; color: var(--ink); }
 .theme-dialog-actions small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
 .theme-dialog-actions button { padding: 8px 16px; border: 1px solid var(--action); border-radius: 4px; background: var(--action); color: var(--surface); font-size: 14px; }
-.theme-dialog button:focus-visible, .theme-option input:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.theme-dialog button:focus-visible, .theme-option input:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }.project-select { position: relative; display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.project-select select { appearance: none; min-width: 140px; max-width: 260px; margin: 0; padding: 6px 30px 6px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; text-overflow: ellipsis; cursor: pointer; }
+.project-select select:hover { border-color: var(--border-strong); }
+.project-select select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.project-select-chevron { position: absolute; right: 8px; display: flex; color: var(--ink); transform: rotate(90deg) scale(.8); pointer-events: none; }
+.theme-thumbnail-preview { display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 24px; background-size: cover; background-position: center; }
+.theme-thumbnail-preview img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }

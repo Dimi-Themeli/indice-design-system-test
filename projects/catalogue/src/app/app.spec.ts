@@ -33,9 +33,25 @@ describe('App', () => {
       expect(dialog.open).toBe(true);
       expect(dialog.querySelector('.welcome-signoff')?.textContent).toBe('.... and always an Indicer! <3');
       const buttons = dialog.querySelectorAll<HTMLButtonElement>('.welcome-roles button');
+      expect(dialog.querySelector('.welcome-steps li.current')?.textContent).toContain('01');
       buttons[role === 'developer' ? 0 : 1].click();
       await fixture.whenStable();
       expect(fixture.componentInstance.role()).toBe(role);
+      expect(dialog.close).not.toHaveBeenCalled();
+      expect(dialog.querySelector('.welcome-steps li.current')?.textContent).toContain('02');
+      expect(dialog.querySelector('#welcome-title')?.textContent).toBe('Choose a project');
+      const choices = dialog.querySelectorAll<HTMLInputElement>('input[name="welcome-project-choice"]');
+      expect(choices.length).toBe(1);
+      expect(choices[0].value).toBe('iam');
+      expect(choices[0].checked).toBe(true);
+      (dialog.querySelector('.welcome-actions .project-text-link') as HTMLButtonElement).click();
+      await fixture.whenStable();
+      expect(dialog.querySelector('.welcome-roles')).not.toBeNull();
+      dialog.querySelectorAll<HTMLButtonElement>('.welcome-roles button')[role === 'developer' ? 0 : 1].click();
+      await fixture.whenStable();
+      (dialog.querySelector('.welcome-open') as HTMLButtonElement).click();
+      await fixture.whenStable();
+      expect(fixture.componentInstance.activeProjectId()).toBe('iam');
       expect(dialog.close).toHaveBeenCalledOnce();
       expect(dialog.open).toBe(false);
       expect((element.querySelector('.topbar-actions') as HTMLElement).style.display).toBe(role === 'designer' ? '' : 'none');
@@ -56,6 +72,28 @@ describe('App', () => {
     expect(dialog.close).toHaveBeenCalledOnce();
     expect(dialog.querySelector('.welcome-close')).toBeNull();
     expect(dialog.querySelectorAll('button').length).toBe(2);
+  });
+
+  it('switches the current project from the header dropdown without leaving the page', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    const uploaded = { ...structuredClone(BASE_PROJECTS[0]), id: 'novio', name: 'Novio', status: 'Draft' as const, tokens: { 'Primitive/Indice': { colours: { main: { primary: { '600': { $value: '#005b97' } } } } } } };
+    app.projects.set([...BASE_PROJECTS, uploaded]);
+    app.showProjects('manage');
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const select = element.querySelector('.theme-context select') as HTMLSelectElement;
+    expect([...select.options].map(option => option.textContent)).toEqual(['IAM', 'Novio']);
+    expect(select.value).toBe('iam');
+    select.value = 'novio';
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(app.activeProjectId()).toBe('novio');
+    expect(app.view()).toBe('manage');
+    expect(loadProjectState().activeId).toBe('novio');
+    expect((element.querySelector('main') as HTMLElement).style.getPropertyValue('--indice-colours-main-primary-600')).toBe('#005b97');
+    expect(document.documentElement.style.getPropertyValue('--indice-colours-main-primary-600')).toBe('#e5861a');
   });
 
   it('validates token files and optional Figma links', () => {
@@ -157,7 +195,7 @@ describe('App', () => {
       await component.selectLogoFile('dark', { name: 'dark-logo.png', type: 'image/png', size: 3 } as File);
       await component.selectLogoFile('light', { name: 'light-logo.png', type: 'image/png', size: 3 } as File);
       fixture.detectChanges();
-      expect(component.logos()).toEqual({ dark: 'data:image/png;base64,AA==', light: 'data:image/png;base64,AA==' });
+      expect(component.logos()).toEqual({ dark: 'data:image/png;base64,AA==', light: 'data:image/png;base64,AA==', thumbnail: null });
       expect((fixture.nativeElement as HTMLElement).querySelectorAll('.logo-preview').length).toBe(2);
       component.submit();
       expect(create.mock.calls[0][0].logoDark).toBe('data:image/png;base64,AA==');
@@ -171,7 +209,7 @@ describe('App', () => {
     }
   });
 
-  it('shows the active project light logo in the workspace header and project tiles', async () => {
+  it('shows the project light logo on project tiles but not in the workspace header', async () => {
     const fixture = TestBed.createComponent(App);
     const component = fixture.componentInstance;
     component.setRole('designer');
@@ -190,10 +228,11 @@ describe('App', () => {
     component.createProject(project);
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelector('.topbar .project-header-logo')?.getAttribute('src')).toBe(project.logoLight);
-    expect(element.querySelector('.topbar .project-header-logo')?.getAttribute('alt')).toBe('Brand project logo');
+    expect(element.querySelector('.topbar img')).toBeNull();
     expect(element.querySelector('.project-row .project-logo[alt="Brand project logo"]')?.getAttribute('src')).toBe(project.logoLight);
-    expect(element.querySelector('.theme-option .theme-logo-preview')?.getAttribute('src')).toBe(project.logoLight);
+    component.chooseRole('designer');
+    fixture.detectChanges();
+    expect(element.querySelector('.welcome-dialog .theme-option .theme-logo-preview')?.getAttribute('src')).toBe(project.logoLight);
   });
 
   it('applies the selected project palette to the shared component library and removes it on project switch', async () => {
@@ -216,14 +255,77 @@ describe('App', () => {
     };
     app.createProject(project);
     await fixture.whenStable();
-    expect(document.documentElement.style.getPropertyValue('--indice-colours-main-primary-600')).toBe('#005b97');
-    expect(document.documentElement.style.getPropertyValue('--colours-surface-element-primary-default')).toBe('#005b97');
+    const main = (fixture.nativeElement as HTMLElement).querySelector('main') as HTMLElement;
+    const root = document.documentElement;
+    expect(main.style.getPropertyValue('--indice-colours-main-primary-600')).toBe('#005b97');
+    expect(main.style.getPropertyValue('--colours-surface-element-primary-default')).toBe('#005b97');
+    expect(root.style.getPropertyValue('--indice-colours-main-primary-600')).toBe('#e5861a');
+    expect(root.style.getPropertyValue('--colours-surface-element-primary-default')).toBe('');
     app.activateProject('iam');
     await fixture.whenStable();
-    expect(document.documentElement.style.getPropertyValue('--indice-colours-main-primary-600')).toBe('#e5861a');
-    expect(document.documentElement.style.getPropertyValue('--colours-surface-element-primary-default')).toBe('');
+    expect(main.style.getPropertyValue('--indice-colours-main-primary-600')).toBe('#e5861a');
+    expect(main.style.getPropertyValue('--colours-surface-element-primary-default')).toBe('');
+    expect(root.style.getPropertyValue('--indice-colours-main-primary-600')).toBe('#e5861a');
   });
 
+  it('shows the active project tokens on the foundation pages and falls back to IAM', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    app.setRole('designer');
+    app.createProject({
+      ...structuredClone(BASE_PROJECTS[0]),
+      id: 'novio', name: 'Novio', status: 'Draft' as const, tokenFileName: 'novio.json', tokenCount: 2, images: [],
+      tokens: { 'Primitive/Indice': { colours: { main: { primary: { '600': { $value: '#005b97', $type: 'color' } } } }, space: { '8': { $value: 8, $type: 'number' } } } },
+    });
+    app.select('colours');
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(app.count('colours')).toBe(1);
+    expect(element.querySelector('.token .token-value')?.textContent).toBe('#005b97');
+    expect(element.querySelector('.total strong')?.textContent).toBe('2');
+    app.activateProject('iam');
+    fixture.detectChanges();
+    expect(app.count('colours')).toBeGreaterThan(100);
+    expect(element.querySelector('.token-section[aria-label="colours.main.primary"] .token-value')?.textContent).not.toBe('#005b97');
+  });
+
+  it('uploads a thumbnail background image and shows the dark theme logo in front of it on project tiles', async () => {
+    const readImage = vi.spyOn(FileReader.prototype, 'readAsDataURL').mockImplementation(function (this: FileReader) {
+      Object.defineProperty(this, 'result', { configurable: true, value: 'data:image/png;base64,AA==' });
+      this.onload?.call(this, new ProgressEvent('load') as ProgressEvent<FileReader>);
+    });
+    try {
+      const form = TestBed.createComponent(Projects);
+      form.componentRef.setInput('page', 'create');
+      form.componentRef.setInput('canEdit', true);
+      await form.whenStable();
+      const create = vi.fn();
+      form.componentInstance.create.subscribe(create);
+      form.componentInstance.update('name', 'Thumb project');
+      await form.componentInstance.selectTokenFile({ name: 'tokens.json', size: 20, text: async () => '{"brand":"#000000"}' } as File);
+      await form.componentInstance.selectLogoFile('thumbnail', { name: 'bg.png', type: 'image/png', size: 3 } as File);
+      form.detectChanges();
+      expect((form.nativeElement as HTMLElement).querySelector('.thumbnail-preview')).not.toBeNull();
+      form.componentInstance.submit();
+      expect(create.mock.calls[0][0].thumbnail).toBe('data:image/png;base64,AA==');
+    } finally {
+      readImage.mockRestore();
+    }
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    app.setRole('designer');
+    app.createProject({ ...structuredClone(BASE_PROJECTS[0]), id: 'thumb', name: 'Thumb', status: 'Draft' as const, tokens: { brand: '#000000' }, tokenFileName: 'tokens.json', tokenCount: 1, images: [], logoLight: 'data:image/png;base64,AA==', logoDark: 'data:image/png;base64,Ag==', thumbnail: 'data:image/png;base64,AQ==' });
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    expect((element.querySelector('.project-thumbnail-bg') as HTMLElement).style.backgroundImage).toContain('data:image/png;base64,AQ==');
+    expect(element.querySelector('.project-thumbnail-bg img')?.getAttribute('src')).toBe('data:image/png;base64,Ag==');
+    expect(element.querySelector('.delete-action[aria-disabled="true"]')?.getAttribute('title')).toBe('IAM is the built-in project and cannot be deleted');
+    app.chooseRole('designer');
+    fixture.detectChanges();
+    expect((element.querySelector('.theme-thumbnail-preview') as HTMLElement).style.backgroundImage).toContain('data:image/png;base64,AQ==');
+    expect(element.querySelector('.theme-thumbnail-preview img')?.getAttribute('src')).toBe('data:image/png;base64,Ag==');
+  });
   it('ignores stale token file reads and prevents creation for read-only users', async () => {
     const fixture = TestBed.createComponent(Projects);
     await fixture.whenStable();
@@ -365,20 +467,6 @@ describe('App', () => {
     expect(dialog.showModal).not.toHaveBeenCalled();
   });
 
-  it('opens read-only management from the project chooser link for Developer', async () => {
-    const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
-    const element = fixture.nativeElement as HTMLElement;
-    const chooser = element.querySelector('dialog[aria-labelledby="theme-chooser-title"]') as HTMLDialogElement;
-    chooser.close = vi.fn();
-    (chooser.querySelector('.project-text-link') as HTMLButtonElement).click();
-    await fixture.whenStable();
-    expect(chooser.close).toHaveBeenCalledOnce();
-    expect(fixture.componentInstance.view()).toBe('manage');
-    expect(element.querySelector('app-projects h1')?.textContent).toBe('Manage projects');
-    expect(element.querySelector('app-projects .delete-action')).toBeNull();
-  });
-
   it('should create the app', () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
@@ -450,7 +538,7 @@ describe('App', () => {
     expect(element.querySelector('app-projects .delete-action')).toBeNull();
   });
 
-  it('replaces the breadcrumb with design system and theme context and opens the current theme chooser', async () => {
+  it('shows only the design system name and project dropdown in the header, and lists all projects in welcome step 02', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const app = fixture.componentInstance;
@@ -465,40 +553,27 @@ describe('App', () => {
     expect(element.querySelector('.breadcrumb')).toBeNull();
     expect(element.querySelector('.sidebar-label')).toBeNull();
     expect(element.querySelector('.system-name')?.textContent).toBe('Design System 0.0');
-    expect(element.querySelector('.theme-context')?.textContent).toContain('Project: Uploaded One');
-    const dialog = element.querySelector('dialog[aria-labelledby="theme-chooser-title"]') as HTMLDialogElement;
-    dialog.showModal = vi.fn();
+    expect((element.querySelector('.theme-context select') as HTMLSelectElement).value).toBe('uploaded-one');
+    expect(element.querySelector('.topbar img')).toBeNull();
+    expect(element.querySelector('.topbar')?.textContent).not.toContain('Change project');
+    expect(element.querySelector('dialog[aria-labelledby="theme-chooser-title"]')).toBeNull();
+    const dialog = element.querySelector('.welcome-dialog') as HTMLDialogElement;
     dialog.close = vi.fn();
-    fixture.componentInstance.menuOpen.set(true);
-    (element.querySelector('.theme-change') as HTMLButtonElement).click();
+    app.chooseRole('designer');
     fixture.detectChanges();
-    expect(dialog.showModal).toHaveBeenCalledOnce();
-    expect(fixture.componentInstance.menuOpen()).toBe(false);
-    const choices = dialog.querySelectorAll<HTMLInputElement>('input[name="project-choice"]');
-    expect(choices.length).toBe(3);
-    expect(choices[0].value).toBe('iam');
-    expect(choices[1].value).toBe('uploaded-one');
+    const choices = dialog.querySelectorAll<HTMLInputElement>('input[name="welcome-project-choice"]');
+    expect([...choices].map(choice => choice.value)).toEqual(['iam', 'uploaded-one', 'uploaded-two']);
     expect(choices[1].checked).toBe(true);
     expect(dialog.querySelectorAll('img.theme-preview').length).toBe(2);
-    expect(dialog.textContent).toContain('IAM');
-    expect(dialog.textContent).not.toContain('Company B / Workspace');
     choices[2].click();
-    await fixture.whenStable();
-    expect(fixture.componentInstance.previewProjectId()).toBe('uploaded-two');
-    expect(dialog.querySelector('.theme-dialog-actions')?.textContent).toContain('Uploaded project');
-    expect(element.querySelector('.theme-context')?.textContent).toContain('Project: Uploaded One');
+    fixture.detectChanges();
+    expect(app.previewProjectId()).toBe('uploaded-two');
     expect(dialog.querySelectorAll('.is-selected').length).toBe(1);
-    fixture.componentInstance.applyProject(dialog);
+    expect(app.activeProjectId()).toBe('uploaded-one');
+    (dialog.querySelector('.welcome-open') as HTMLButtonElement).click();
     expect(dialog.close).toHaveBeenCalledOnce();
-    expect(fixture.componentInstance.activeProjectId()).toBe('uploaded-two');
-    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    expect(dialog.close).toHaveBeenCalledTimes(2);
-    const trigger = element.querySelector('.theme-change') as HTMLButtonElement;
-    const focus = vi.spyOn(trigger, 'focus');
-    dialog.dispatchEvent(new Event('close'));
-    expect(focus).toHaveBeenCalledOnce();
+    expect(app.activeProjectId()).toBe('uploaded-two');
   });
-
   it('offers the source JSON download only at the bottom of the sidebar without the progress status', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
