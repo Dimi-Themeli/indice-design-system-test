@@ -114,7 +114,7 @@ The ribbon switches between simulated Designer and Developer roles; this is not 
 
 Only a project name and a valid token JSON file are required. Customer, description, Figma link and reference images are optional; platform and light/dark support have defaults. JSON files may use nested `$value`/`value` tokens or a plain token object (up to 1 MB). References accept up to three PNG/JPEG/WebP images, each up to 1 MB.
 
-Projects, imported token data, reference images and the current selection are saved to this browser's local storage under `indice-demo-projects-v1`. Storage failures are reported without discarding the existing project list. Deletion requires confirmation, removes the stored project copy, and selects another project or the base library if the active project is deleted. An empty project list remains empty after reload.
+Projects, imported token data, optional logos, reference images and the current selection are saved to this browser's local storage under `indice-demo-projects-v1`. Project logos accept one PNG, JPEG or WebP image up to 1 MB. Storage failures are reported without discarding the existing project list. Deletion requires confirmation, removes the stored project copy, and selects another project or the base library if the active project is deleted. An empty project list remains empty after reload.
 
 New projects are **Drafts**. Token imports are validated and stored, not automatically mapped into component styling or published as packages. Project selection changes catalogue context; the shared component implementation and current base styling remain unchanged. A project contains the customer context and references; its **theme** is the styling configuration, including light/dark modes.
 

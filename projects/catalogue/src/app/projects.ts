@@ -29,23 +29,31 @@ export class Projects {
   readonly tokenDocument = signal<ReturnType<typeof parseTokenFile> | null>(null);
   readonly tokenError = signal('');
   readonly formError = signal('');
+  readonly logo = signal<string | null>(null);
+  readonly logoError = signal('');
+  readonly readingLogo = signal(false);
   readonly images = signal<string[]>([]);
   readonly imageError = signal('');
   readonly readingTokens = signal(false);
   readonly readingImages = signal(false);
   private tokenRead = 0;
+  private logoRead = 0;
   private imageRead = 0;
 
   constructor() {
     effect(() => {
       this.page();
       this.tokenRead++;
+      this.logoRead++;
       this.imageRead++;
       this.draft.set({ name: '', customer: '', description: '', figmaUrl: '', modes: 'Light', platform: 'Desktop app' });
       this.tokenFileName.set('');
       this.tokenDocument.set(null);
       this.tokenError.set('');
       this.formError.set('');
+      this.logo.set(null);
+      this.logoError.set('');
+      this.readingLogo.set(false);
       this.images.set([]);
       this.imageError.set('');
       this.readingTokens.set(false);
@@ -80,6 +88,40 @@ export class Projects {
     } finally {
       if (version === this.tokenRead) this.readingTokens.set(false);
     }
+  }
+
+  async selectLogoFile(file: File | null) {
+    const version = ++this.logoRead;
+    this.logo.set(null);
+    this.logoError.set('');
+    this.formError.set('');
+    this.readingLogo.set(false);
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 1024 * 1024 || file.size === 0) {
+      this.logoError.set('Choose one PNG, JPEG or WebP logo smaller than 1 MB.');
+      return;
+    }
+    this.readingLogo.set(true);
+    try {
+      const logo = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error('The logo could not be read.'));
+        reader.readAsDataURL(file);
+      });
+      if (version === this.logoRead) this.logo.set(logo);
+    } catch (error) {
+      if (version === this.logoRead) this.logoError.set(error instanceof Error ? error.message : 'The logo could not be read.');
+    } finally {
+      if (version === this.logoRead) this.readingLogo.set(false);
+    }
+  }
+
+  clearLogo() {
+    this.logoRead++;
+    this.logo.set(null);
+    this.logoError.set('');
+    this.readingLogo.set(false);
   }
 
   async selectImages(files: FileList | null) {
@@ -117,7 +159,7 @@ export class Projects {
   }
 
   submit() {
-    if (!this.canEdit() || this.readingTokens() || this.readingImages()) return;
+    if (!this.canEdit() || this.readingTokens() || this.readingLogo() || this.readingImages()) return;
     const draft = this.draft();
     const name = draft.name.trim();
     const document = this.tokenDocument();
@@ -125,8 +167,9 @@ export class Projects {
     if (this.projects().some(project => project.name.toLowerCase() === name.toLowerCase())) { this.formError.set('A project with this name already exists.'); return; }
     if (!document) { this.formError.set('Choose a valid token JSON file.'); return; }
     if (!validFigmaUrl(draft.figmaUrl)) { this.formError.set('Use an HTTPS Figma link, or leave the link empty.'); return; }
+    if (this.logoError()) { this.formError.set('Remove or replace the invalid logo.'); return; }
     if (this.imageError()) { this.formError.set('Remove or replace the invalid reference images.'); return; }
     this.formError.set('');
-    this.create.emit({ id: crypto.randomUUID(), name, customer: draft.customer.trim(), description: draft.description.trim(), figmaUrl: draft.figmaUrl.trim(), modes: draft.modes, platform: draft.platform, images: this.images(), tokenFileName: this.tokenFileName(), tokens: document.tokens, tokenCount: document.count, createdAt: new Date().toISOString(), status: 'Draft' });
+    this.create.emit({ id: crypto.randomUUID(), name, customer: draft.customer.trim(), description: draft.description.trim(), figmaUrl: draft.figmaUrl.trim(), logo: this.logo(), modes: draft.modes, platform: draft.platform, images: this.images(), tokenFileName: this.tokenFileName(), tokens: document.tokens, tokenCount: document.count, createdAt: new Date().toISOString(), status: 'Draft' });
   }
 }

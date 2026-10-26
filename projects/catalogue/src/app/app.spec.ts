@@ -70,6 +70,13 @@ describe('App', () => {
   it('persists projects, preserves an empty list and reports corrupt or unavailable storage', () => {
     saveProjectState(BASE_PROJECTS, 'company-b');
     expect(loadProjectState().activeId).toBe('company-b');
+    const legacyProject = { ...structuredClone(BASE_PROJECTS[0]) } as Partial<typeof BASE_PROJECTS[number]>;
+    delete legacyProject.logo;
+    const legacyState = loadProjectState({ getItem: () => JSON.stringify({ version: 1, projects: [legacyProject], activeId: legacyProject.id }) });
+    expect(legacyState.projects[0].logo).toBeNull();
+    const projectWithLogo = { ...structuredClone(BASE_PROJECTS[0]), logo: 'data:image/png;base64,AA==' };
+    saveProjectState([projectWithLogo], projectWithLogo.id);
+    expect(loadProjectState().projects[0].logo).toBe(projectWithLogo.logo);
     saveProjectState([], null);
     expect(loadProjectState().projects).toEqual([]);
     expect(loadProjectState().activeId).toBeNull();
@@ -101,6 +108,60 @@ describe('App', () => {
     component.submit();
     expect(component.formError()).toContain('HTTPS Figma');
     expect(create).toHaveBeenCalledOnce();
+  });
+
+  it('uploads an optional project logo, previews it, and includes it in the saved draft', async () => {
+    const readImage = vi.spyOn(FileReader.prototype, 'readAsDataURL').mockImplementation(function (this: FileReader) {
+      Object.defineProperty(this, 'result', { configurable: true, value: 'data:image/png;base64,AA==' });
+      this.onload?.call(this, new ProgressEvent('load') as ProgressEvent<FileReader>);
+    });
+    try {
+      const fixture = TestBed.createComponent(Projects);
+      fixture.componentRef.setInput('page', 'create');
+      fixture.componentRef.setInput('canEdit', true);
+      await fixture.whenStable();
+      const component = fixture.componentInstance;
+      const create = vi.fn();
+      component.create.subscribe(create);
+      component.update('name', 'Logo project');
+      await component.selectTokenFile({ name: 'tokens.json', size: 20, text: async () => '{"brand":"#000000"}' } as File);
+      await component.selectLogoFile({ name: 'logo.png', type: 'image/png', size: 3 } as File);
+      fixture.detectChanges();
+      expect(component.logo()).toBe('data:image/png;base64,AA==');
+      expect((fixture.nativeElement as HTMLElement).querySelector('.logo-preview')?.getAttribute('alt')).toBe('Project logo preview');
+      component.submit();
+      expect(create.mock.calls[0][0].logo).toBe('data:image/png;base64,AA==');
+      component.clearLogo();
+      fixture.detectChanges();
+      expect(component.logo()).toBeNull();
+      expect((fixture.nativeElement as HTMLElement).querySelector('.logo-preview')).toBeNull();
+    } finally {
+      readImage.mockRestore();
+    }
+  });
+
+  it('shows the active project logo in the workspace header and project tiles', async () => {
+    const fixture = TestBed.createComponent(App);
+    const component = fixture.componentInstance;
+    component.setRole('designer');
+    const project = {
+      ...structuredClone(BASE_PROJECTS[0]),
+      id: 'brand-project',
+      name: 'Brand project',
+      status: 'Draft' as const,
+      tokens: { brand: '#000000' },
+      tokenFileName: 'tokens.json',
+      tokenCount: 1,
+      logo: 'data:image/png;base64,AA==',
+      images: [],
+    };
+    component.createProject(project);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('.topbar .project-header-logo')?.getAttribute('src')).toBe(project.logo);
+    expect(element.querySelector('.topbar .project-header-logo')?.getAttribute('alt')).toBe('Brand project logo');
+    expect(element.querySelector('.project-row .project-logo[alt="Brand project logo"]')?.getAttribute('src')).toBe(project.logo);
+    expect(element.querySelector('.theme-option .theme-logo-preview')?.getAttribute('src')).toBe(project.logo);
   });
 
   it('ignores stale token file reads and prevents creation for read-only users', async () => {
@@ -268,6 +329,8 @@ describe('App', () => {
     trigger.click();
     await fixture.whenStable();
     expect(fixture.componentInstance.view()).toBe('create');
+    expect(fixture.nativeElement.classList.contains('creating-project')).toBe(true);
+    expect((element.querySelector('.demo-ribbon') as HTMLElement).hidden).toBe(true);
     expect(element.querySelector('app-projects h1')?.textContent).toBe('Add project');
     expect(element.querySelector('.project-dialog')).toBeNull();
     (element.querySelector('.demo-ribbon input[value="developer"]') as HTMLInputElement).click();
@@ -275,6 +338,8 @@ describe('App', () => {
     expect(actions.style.display).toBe('none');
     expect(trigger.disabled).toBe(true);
     expect(fixture.componentInstance.view()).toBe('manage');
+    expect(fixture.nativeElement.classList.contains('creating-project')).toBe(false);
+    expect((element.querySelector('.demo-ribbon') as HTMLElement).hidden).toBe(false);
     expect(element.querySelector('app-projects .delete-action')).toBeNull();
   });
 

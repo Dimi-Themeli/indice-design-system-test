@@ -25,6 +25,8 @@ nav button.active { color: var(--ink); background: var(--surface-selected); font
 .workspace { margin-left: 236px; }
 .topbar { min-height: var(--header-height); padding: 14px 44px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 20px; border-bottom: 1px solid var(--line); }
 .topbar-actions { display: flex; align-items: center; gap: 24px; margin-left: auto; }
+.demo-ribbon[hidden] { display: none; }
+.creating-project .sidebar { top: 0; }
 .role-switcher { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .role-label { color: var(--muted); font-size: 12px; white-space: nowrap; }
 .role-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-subtle); }
@@ -35,6 +37,7 @@ nav button.active { color: var(--ink); background: var(--surface-selected); font
 .role-choice input:checked + span { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px var(--shadow); font-weight: 600; }
 .role-choice input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
 .system-context { display: flex; align-items: center; flex-wrap: wrap; flex: 1; gap: 8px 20px; min-width: 0; }
+.project-header-logo { display: block; width: auto; height: auto; max-width: 120px; max-height: 40px; object-fit: contain; }
 .system-name { display: flex; align-items: baseline; gap: 8px; font-size: 14px; font-weight: 700; white-space: nowrap; }
 .system-version { color: var(--muted); font-size: 12px; font-weight: 400; }
 .theme-context { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; color: var(--muted); font-size: 13px; }

@@ -6,6 +6,7 @@ export interface Project {
   modes: string;
   platform: string;
   figmaUrl: string;
+  logo: string | null;
   images: string[];
   tokenFileName: string;
   tokens: Record<string, unknown> | null;
@@ -23,10 +24,14 @@ export const BASE_PROJECTS: Project[] = [
   { id: 'company-b', name: 'Company B / Workspace', modes: 'Light & dark', platform: 'Desktop app', status: 'Sample' },
   { id: 'company-c', name: 'Company C / Pocket', modes: 'Light', platform: 'Mobile app', status: 'Sample' },
   { id: 'company-d', name: 'Company D / Console', modes: 'Dark', platform: 'Desktop & mobile', status: 'Sample' },
-].map(project => ({ ...project, status: project.status as Project['status'], customer: '', description: '', figmaUrl: '', images: [`assets/theme-${project.id}.png`], tokenFileName: '', tokens: null, tokenCount: 0, createdAt: '' }));
+].map(project => ({ ...project, status: project.status as Project['status'], customer: '', description: '', figmaUrl: '', logo: null, images: [`assets/theme-${project.id}.png`], tokenFileName: '', tokens: null, tokenCount: 0, createdAt: '' }));
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isUploadedImage(value: unknown): value is string {
+  return typeof value === 'string' && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=+$/.test(value);
 }
 
 export function parseTokenFile(source: string): { tokens: Record<string, unknown>; count: number } {
@@ -66,6 +71,7 @@ function isProject(value: unknown): value is Project {
     && ['Base', 'Sample', 'Draft'].includes(String(value['status']))
     && PROJECT_MODES.some(mode => mode === value['modes']) && PROJECT_PLATFORMS.some(platform => platform === value['platform'])
     && validFigmaUrl(String(value['figmaUrl']))
+    && (value['logo'] === undefined || value['logo'] === null || isUploadedImage(value['logo']))
     && Array.isArray(value['images']) && value['images'].every(image => typeof image === 'string' && (/^data:image\/(png|jpeg|webp);base64,/.test(image) || /^assets\/theme-company-[a-d]\.png$/.test(image)))
     && typeof value['tokenCount'] === 'number' && Number.isSafeInteger(value['tokenCount']) && value['tokenCount'] >= 0
     && (value['tokens'] === null || isObject(value['tokens']));
@@ -78,7 +84,7 @@ export function loadProjectState(storage?: Pick<Storage, 'getItem'>): ProjectSta
     if (!source) return fallback();
     const parsed: unknown = JSON.parse(source);
     if (!isObject(parsed) || parsed['version'] !== 1 || !Array.isArray(parsed['projects']) || !parsed['projects'].every(isProject)) throw new Error('Invalid project data');
-    const projects = parsed['projects'];
+    const projects = (parsed['projects'] as Project[]).map(project => ({ ...project, logo: project.logo ?? null }));
     if (new Set(projects.map(project => project.id)).size !== projects.length) throw new Error('Duplicate project identifiers');
     return { projects, activeId: projects.some(project => project.id === parsed['activeId']) ? String(parsed['activeId']) : projects[0]?.id ?? null, warning: '' };
   } catch {
