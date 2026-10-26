@@ -29,31 +29,32 @@ export class Projects {
   readonly tokenDocument = signal<ReturnType<typeof parseTokenFile> | null>(null);
   readonly tokenError = signal('');
   readonly formError = signal('');
-  readonly logo = signal<string | null>(null);
-  readonly logoError = signal('');
-  readonly readingLogo = signal(false);
+  readonly logos = signal<{ dark: string | null; light: string | null }>({ dark: null, light: null });
+  readonly logoErrors = signal<{ dark: string; light: string }>({ dark: '', light: '' });
+  readonly readingLogos = signal<{ dark: boolean; light: boolean }>({ dark: false, light: false });
   readonly images = signal<string[]>([]);
   readonly imageError = signal('');
   readonly readingTokens = signal(false);
   readonly readingImages = signal(false);
   private tokenRead = 0;
-  private logoRead = 0;
+  private logoRead = { dark: 0, light: 0 };
   private imageRead = 0;
 
   constructor() {
     effect(() => {
       this.page();
       this.tokenRead++;
-      this.logoRead++;
+      this.logoRead.dark++;
+      this.logoRead.light++;
       this.imageRead++;
       this.draft.set({ name: '', customer: '', description: '', figmaUrl: '', modes: 'Light', platform: 'Desktop app' });
       this.tokenFileName.set('');
       this.tokenDocument.set(null);
       this.tokenError.set('');
       this.formError.set('');
-      this.logo.set(null);
-      this.logoError.set('');
-      this.readingLogo.set(false);
+      this.logos.set({ dark: null, light: null });
+      this.logoErrors.set({ dark: '', light: '' });
+      this.readingLogos.set({ dark: false, light: false });
       this.images.set([]);
       this.imageError.set('');
       this.readingTokens.set(false);
@@ -90,18 +91,18 @@ export class Projects {
     }
   }
 
-  async selectLogoFile(file: File | null) {
-    const version = ++this.logoRead;
-    this.logo.set(null);
-    this.logoError.set('');
+  async selectLogoFile(theme: 'dark' | 'light', file: File | null) {
+    const version = ++this.logoRead[theme];
+    this.logos.update(logos => ({ ...logos, [theme]: null }));
+    this.logoErrors.update(errors => ({ ...errors, [theme]: '' }));
     this.formError.set('');
-    this.readingLogo.set(false);
+    this.readingLogos.update(reading => ({ ...reading, [theme]: false }));
     if (!file) return;
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 1024 * 1024 || file.size === 0) {
-      this.logoError.set('Choose one PNG, JPEG or WebP logo smaller than 1 MB.');
+      this.logoErrors.update(errors => ({ ...errors, [theme]: 'Choose one PNG, JPEG or WebP logo smaller than 1 MB.' }));
       return;
     }
-    this.readingLogo.set(true);
+    this.readingLogos.update(reading => ({ ...reading, [theme]: true }));
     try {
       const logo = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -109,19 +110,19 @@ export class Projects {
         reader.onerror = () => reject(new Error('The logo could not be read.'));
         reader.readAsDataURL(file);
       });
-      if (version === this.logoRead) this.logo.set(logo);
+      if (version === this.logoRead[theme]) this.logos.update(logos => ({ ...logos, [theme]: logo }));
     } catch (error) {
-      if (version === this.logoRead) this.logoError.set(error instanceof Error ? error.message : 'The logo could not be read.');
+      if (version === this.logoRead[theme]) this.logoErrors.update(errors => ({ ...errors, [theme]: error instanceof Error ? error.message : 'The logo could not be read.' }));
     } finally {
-      if (version === this.logoRead) this.readingLogo.set(false);
+      if (version === this.logoRead[theme]) this.readingLogos.update(reading => ({ ...reading, [theme]: false }));
     }
   }
 
-  clearLogo() {
-    this.logoRead++;
-    this.logo.set(null);
-    this.logoError.set('');
-    this.readingLogo.set(false);
+  clearLogo(theme: 'dark' | 'light') {
+    this.logoRead[theme]++;
+    this.logos.update(logos => ({ ...logos, [theme]: null }));
+    this.logoErrors.update(errors => ({ ...errors, [theme]: '' }));
+    this.readingLogos.update(reading => ({ ...reading, [theme]: false }));
   }
 
   async selectImages(files: FileList | null) {
@@ -159,7 +160,7 @@ export class Projects {
   }
 
   submit() {
-    if (!this.canEdit() || this.readingTokens() || this.readingLogo() || this.readingImages()) return;
+    if (!this.canEdit() || this.readingTokens() || this.readingLogos().dark || this.readingLogos().light || this.readingImages()) return;
     const draft = this.draft();
     const name = draft.name.trim();
     const document = this.tokenDocument();
@@ -167,9 +168,9 @@ export class Projects {
     if (this.projects().some(project => project.name.toLowerCase() === name.toLowerCase())) { this.formError.set('A project with this name already exists.'); return; }
     if (!document) { this.formError.set('Choose a valid token JSON file.'); return; }
     if (!validFigmaUrl(draft.figmaUrl)) { this.formError.set('Use an HTTPS Figma link, or leave the link empty.'); return; }
-    if (this.logoError()) { this.formError.set('Remove or replace the invalid logo.'); return; }
+    if (this.logoErrors().dark || this.logoErrors().light) { this.formError.set('Remove or replace the invalid theme logo.'); return; }
     if (this.imageError()) { this.formError.set('Remove or replace the invalid reference images.'); return; }
     this.formError.set('');
-    this.create.emit({ id: crypto.randomUUID(), name, customer: draft.customer.trim(), description: draft.description.trim(), figmaUrl: draft.figmaUrl.trim(), logo: this.logo(), modes: draft.modes, platform: draft.platform, images: this.images(), tokenFileName: this.tokenFileName(), tokens: document.tokens, tokenCount: document.count, createdAt: new Date().toISOString(), status: 'Draft' });
+    this.create.emit({ id: crypto.randomUUID(), name, customer: draft.customer.trim(), description: draft.description.trim(), figmaUrl: draft.figmaUrl.trim(), logoDark: this.logos().dark, logoLight: this.logos().light, modes: draft.modes, platform: draft.platform, images: this.images(), tokenFileName: this.tokenFileName(), tokens: document.tokens, tokenCount: document.count, createdAt: new Date().toISOString(), status: 'Draft' });
   }
 }

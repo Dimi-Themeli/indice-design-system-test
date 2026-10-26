@@ -1,4 +1,4 @@
-import { Component, ElementRef, afterNextRender, computed, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, afterNextRender, computed, effect, signal, viewChild } from '@angular/core';
 import { TOKENS, DesignToken } from 'indice-tokens';
 import { Icon } from './icon';
 import { ButtonCatalogue } from './buttons';
@@ -6,7 +6,7 @@ import { IconButtonCatalogue } from './icon-buttons';
 import { SocialButtonCatalogue } from './social-buttons';
 import { FieldCatalogue } from './fields';
 import { Projects } from './projects';
-import { Project, loadProjectState, saveProjectState } from './project-data';
+import { Project, loadProjectState, projectCssVariables, saveProjectState } from './project-data';
 
 @Component({
   imports: [Icon, ButtonCatalogue, IconButtonCatalogue, SocialButtonCatalogue, FieldCatalogue, Projects],
@@ -30,10 +30,11 @@ export class App {
   readonly role = signal<'designer' | 'developer'>('developer');
   private readonly savedProjects = loadProjectState();
   readonly projects = signal<Project[]>(this.savedProjects.projects);
+  readonly uploadedProjects = computed(() => this.projects().filter(project => project.status === 'Draft'));
   readonly activeProjectId = signal<string | null>(this.savedProjects.activeId);
   readonly currentProject = computed(() => this.projects().find(project => project.id === this.activeProjectId()) ?? null);
   readonly previewProjectId = signal<string | null>(this.savedProjects.activeId);
-  readonly selectedProjectPreview = computed(() => this.projects().find(project => project.id === this.previewProjectId()) ?? null);
+  readonly selectedProjectPreview = computed(() => this.uploadedProjects().find(project => project.id === this.previewProjectId()) ?? null);
   readonly view = signal<'library' | 'create' | 'manage'>('library');
   readonly projectError = signal(this.savedProjects.warning);
   readonly pendingDeletion = signal<Project | null>(null);
@@ -61,6 +62,21 @@ export class App {
   });
 
   constructor() {
+    effect(onCleanup => {
+      const variables = projectCssVariables(this.currentProject()?.tokens ?? null);
+      const root = document.documentElement;
+      const previous = new Map<string, { value: string; priority: string }>();
+      for (const [name, value] of Object.entries(variables)) {
+        previous.set(name, { value: root.style.getPropertyValue(name), priority: root.style.getPropertyPriority(name) });
+        root.style.setProperty(name, value);
+      }
+      onCleanup(() => {
+        for (const [name, original] of previous) {
+          if (original.value) root.style.setProperty(name, original.value, original.priority);
+          else root.style.removeProperty(name);
+        }
+      });
+    });
     afterNextRender(() => this.openWelcome());
   }
 
@@ -83,7 +99,8 @@ export class App {
 
   openThemeChooser(dialog: HTMLDialogElement) {
     this.menuOpen.set(false);
-    this.previewProjectId.set(this.activeProjectId());
+    const activeId = this.activeProjectId();
+    this.previewProjectId.set(this.uploadedProjects().some(project => project.id === activeId) ? activeId : this.uploadedProjects()[0]?.id ?? null);
     dialog.showModal();
   }
 
@@ -96,7 +113,7 @@ export class App {
   }
 
   selectProjectPreview(id: string) {
-    if (this.projects().some(project => project.id === id)) this.previewProjectId.set(id);
+    if (this.uploadedProjects().some(project => project.id === id)) this.previewProjectId.set(id);
   }
 
   private commitProjects(projects: Project[], activeId: string | null): boolean {

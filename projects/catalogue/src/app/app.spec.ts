@@ -7,7 +7,7 @@ import { SocialButtonCatalogue } from './social-buttons';
 import { FieldCatalogue } from './fields';
 import { UseIt } from './use-it';
 import { buildConfiguredUsage, buildUsageExample, parseUsageSettings, USAGE } from './usage-data';
-import { BASE_PROJECTS, loadProjectState, parseTokenFile, PROJECT_STORAGE_KEY, saveProjectState, validFigmaUrl } from './project-data';
+import { BASE_PROJECTS, loadProjectState, parseTokenFile, projectCssVariables, PROJECT_STORAGE_KEY, saveProjectState, validFigmaUrl } from './project-data';
 import { Projects } from './projects';
 
 describe('App', () => {
@@ -67,16 +67,37 @@ describe('App', () => {
     expect(validFigmaUrl('javascript:alert(1)')).toBe(false);
   });
 
+  it('maps project primitive and semantic color tokens to component CSS variables', () => {
+    const variables = projectCssVariables({
+      'Primitive/Indice': {
+        colours: { main: { primary: { '600': { $value: '#005b97', $type: 'color' } } } },
+      },
+      'Semantic/Default - Light Mode': {
+        colours: { surface: { 'element-primary-default': { $value: '{colours.main.primary.600}', $type: 'color' } } },
+      },
+    });
+    expect(variables['--indice-colours-main-primary-600']).toBe('#005b97');
+    expect(variables['--colours-surface-element-primary-default']).toBe('#005b97');
+    const otherProjectVariables = projectCssVariables({
+      'Primitive/Indice': { colours: { main: { primary: { '600': { $value: '#e5861a' } } } } },
+    });
+    expect(otherProjectVariables['--indice-colours-main-primary-600']).toBe('#e5861a');
+  });
+
   it('persists projects, preserves an empty list and reports corrupt or unavailable storage', () => {
     saveProjectState(BASE_PROJECTS, 'company-b');
     expect(loadProjectState().activeId).toBe('company-b');
     const legacyProject = { ...structuredClone(BASE_PROJECTS[0]) } as Partial<typeof BASE_PROJECTS[number]>;
-    delete legacyProject.logo;
+    delete legacyProject.logoDark;
+    delete legacyProject.logoLight;
+    Object.assign(legacyProject, { logo: 'data:image/png;base64,AA==' });
     const legacyState = loadProjectState({ getItem: () => JSON.stringify({ version: 1, projects: [legacyProject], activeId: legacyProject.id }) });
-    expect(legacyState.projects[0].logo).toBeNull();
-    const projectWithLogo = { ...structuredClone(BASE_PROJECTS[0]), logo: 'data:image/png;base64,AA==' };
+    expect(legacyState.projects[0].logoLight).toBe('data:image/png;base64,AA==');
+    expect(legacyState.projects[0].logoDark).toBeNull();
+    const projectWithLogo = { ...structuredClone(BASE_PROJECTS[0]), logoDark: 'data:image/png;base64,AQ==', logoLight: 'data:image/png;base64,AA==' };
     saveProjectState([projectWithLogo], projectWithLogo.id);
-    expect(loadProjectState().projects[0].logo).toBe(projectWithLogo.logo);
+    expect(loadProjectState().projects[0].logoLight).toBe(projectWithLogo.logoLight);
+    expect(loadProjectState().projects[0].logoDark).toBe(projectWithLogo.logoDark);
     saveProjectState([], null);
     expect(loadProjectState().projects).toEqual([]);
     expect(loadProjectState().activeId).toBeNull();
@@ -110,7 +131,7 @@ describe('App', () => {
     expect(create).toHaveBeenCalledOnce();
   });
 
-  it('uploads an optional project logo, previews it, and includes it in the saved draft', async () => {
+  it('uploads optional dark and light theme logos, previews them, and includes both in the draft', async () => {
     const readImage = vi.spyOn(FileReader.prototype, 'readAsDataURL').mockImplementation(function (this: FileReader) {
       Object.defineProperty(this, 'result', { configurable: true, value: 'data:image/png;base64,AA==' });
       this.onload?.call(this, new ProgressEvent('load') as ProgressEvent<FileReader>);
@@ -125,22 +146,24 @@ describe('App', () => {
       component.create.subscribe(create);
       component.update('name', 'Logo project');
       await component.selectTokenFile({ name: 'tokens.json', size: 20, text: async () => '{"brand":"#000000"}' } as File);
-      await component.selectLogoFile({ name: 'logo.png', type: 'image/png', size: 3 } as File);
+      await component.selectLogoFile('dark', { name: 'dark-logo.png', type: 'image/png', size: 3 } as File);
+      await component.selectLogoFile('light', { name: 'light-logo.png', type: 'image/png', size: 3 } as File);
       fixture.detectChanges();
-      expect(component.logo()).toBe('data:image/png;base64,AA==');
-      expect((fixture.nativeElement as HTMLElement).querySelector('.logo-preview')?.getAttribute('alt')).toBe('Project logo preview');
+      expect(component.logos()).toEqual({ dark: 'data:image/png;base64,AA==', light: 'data:image/png;base64,AA==' });
+      expect((fixture.nativeElement as HTMLElement).querySelectorAll('.logo-preview').length).toBe(2);
       component.submit();
-      expect(create.mock.calls[0][0].logo).toBe('data:image/png;base64,AA==');
-      component.clearLogo();
+      expect(create.mock.calls[0][0].logoDark).toBe('data:image/png;base64,AA==');
+      expect(create.mock.calls[0][0].logoLight).toBe('data:image/png;base64,AA==');
+      component.clearLogo('dark');
       fixture.detectChanges();
-      expect(component.logo()).toBeNull();
-      expect((fixture.nativeElement as HTMLElement).querySelector('.logo-preview')).toBeNull();
+      expect(component.logos().dark).toBeNull();
+      expect((fixture.nativeElement as HTMLElement).querySelectorAll('.logo-preview').length).toBe(1);
     } finally {
       readImage.mockRestore();
     }
   });
 
-  it('shows the active project logo in the workspace header and project tiles', async () => {
+  it('shows the active project light logo in the workspace header and project tiles', async () => {
     const fixture = TestBed.createComponent(App);
     const component = fixture.componentInstance;
     component.setRole('designer');
@@ -152,16 +175,45 @@ describe('App', () => {
       tokens: { brand: '#000000' },
       tokenFileName: 'tokens.json',
       tokenCount: 1,
-      logo: 'data:image/png;base64,AA==',
+      logoDark: 'data:image/png;base64,AQ==',
+      logoLight: 'data:image/png;base64,AA==',
       images: [],
     };
     component.createProject(project);
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelector('.topbar .project-header-logo')?.getAttribute('src')).toBe(project.logo);
+    expect(element.querySelector('.topbar .project-header-logo')?.getAttribute('src')).toBe(project.logoLight);
     expect(element.querySelector('.topbar .project-header-logo')?.getAttribute('alt')).toBe('Brand project logo');
-    expect(element.querySelector('.project-row .project-logo[alt="Brand project logo"]')?.getAttribute('src')).toBe(project.logo);
-    expect(element.querySelector('.theme-option .theme-logo-preview')?.getAttribute('src')).toBe(project.logo);
+    expect(element.querySelector('.project-row .project-logo[alt="Brand project logo"]')?.getAttribute('src')).toBe(project.logoLight);
+    expect(element.querySelector('.theme-option .theme-logo-preview')?.getAttribute('src')).toBe(project.logoLight);
+  });
+
+  it('applies the selected project palette to the shared component library and removes it on project switch', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    app.setRole('designer');
+    const project = {
+      ...structuredClone(BASE_PROJECTS[0]),
+      id: 'themed-project',
+      name: 'Themed project',
+      status: 'Draft' as const,
+      tokens: {
+        'Primitive/Indice': { colours: { main: { primary: { '600': { $value: '#005b97', $type: 'color' } } } } },
+        'Semantic/Default - Light Mode': { colours: { surface: { 'element-primary-default': { $value: '{colours.main.primary.600}', $type: 'color' } } } },
+      },
+      tokenFileName: 'tokens.json',
+      tokenCount: 1,
+      images: [],
+    };
+    app.createProject(project);
+    await fixture.whenStable();
+    expect(document.documentElement.style.getPropertyValue('--indice-colours-main-primary-600')).toBe('#005b97');
+    expect(document.documentElement.style.getPropertyValue('--colours-surface-element-primary-default')).toBe('#005b97');
+    app.activateProject('company-a');
+    await fixture.whenStable();
+    expect(document.documentElement.style.getPropertyValue('--indice-colours-main-primary-600')).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--colours-surface-element-primary-default')).toBe('');
   });
 
   it('ignores stale token file reads and prevents creation for read-only users', async () => {
@@ -346,32 +398,43 @@ describe('App', () => {
   it('replaces the breadcrumb with design system and theme context and opens the current theme chooser', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
+    const app = fixture.componentInstance;
+    const uploadedProjects = [
+      { ...structuredClone(BASE_PROJECTS[0]), id: 'uploaded-one', name: 'Uploaded One', status: 'Draft' as const, tokens: { color: '#111111' }, logoLight: 'data:image/png;base64,AA==' },
+      { ...structuredClone(BASE_PROJECTS[1]), id: 'uploaded-two', name: 'Uploaded Two', status: 'Draft' as const, tokens: { color: '#222222' }, logoLight: 'data:image/png;base64,AQ==' },
+    ];
+    app.projects.set([...BASE_PROJECTS, ...uploadedProjects]);
+    app.activeProjectId.set(uploadedProjects[0].id);
+    fixture.detectChanges();
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('.breadcrumb')).toBeNull();
     expect(element.querySelector('.sidebar-label')).toBeNull();
     expect(element.querySelector('.system-name')?.textContent).toBe('Design System 0.0');
-    expect(element.querySelector('.theme-context')?.textContent).toContain('Project: Company A');
+    expect(element.querySelector('.theme-context')?.textContent).toContain('Project: Uploaded One');
     const dialog = element.querySelector('dialog[aria-labelledby="theme-chooser-title"]') as HTMLDialogElement;
     dialog.showModal = vi.fn();
     dialog.close = vi.fn();
     fixture.componentInstance.menuOpen.set(true);
     (element.querySelector('.theme-change') as HTMLButtonElement).click();
+    fixture.detectChanges();
     expect(dialog.showModal).toHaveBeenCalledOnce();
     expect(fixture.componentInstance.menuOpen()).toBe(false);
     const choices = dialog.querySelectorAll<HTMLInputElement>('input[name="project-choice"]');
-    expect(choices.length).toBe(4);
-    expect(choices[0].value).toBe('company-a');
+    expect(choices.length).toBe(2);
+    expect(choices[0].value).toBe('uploaded-one');
     expect(choices[0].checked).toBe(true);
-    expect(dialog.querySelectorAll('img.theme-preview').length).toBe(4);
+    expect(dialog.querySelectorAll('img.theme-preview').length).toBe(2);
+    expect(dialog.textContent).not.toContain('Company A');
+    expect(dialog.textContent).not.toContain('Company B / Workspace');
     choices[1].click();
     await fixture.whenStable();
-    expect(fixture.componentInstance.previewProjectId()).toBe('company-b');
-    expect(dialog.querySelector('.theme-dialog-actions')?.textContent).toContain('Sample project');
-    expect(element.querySelector('.theme-context')?.textContent).toContain('Project: Company A');
+    expect(fixture.componentInstance.previewProjectId()).toBe('uploaded-two');
+    expect(dialog.querySelector('.theme-dialog-actions')?.textContent).toContain('Draft / Base component styling');
+    expect(element.querySelector('.theme-context')?.textContent).toContain('Project: Uploaded One');
     expect(dialog.querySelectorAll('.is-selected').length).toBe(1);
     fixture.componentInstance.applyProject(dialog);
     expect(dialog.close).toHaveBeenCalledOnce();
-    expect(fixture.componentInstance.activeProjectId()).toBe('company-b');
+    expect(fixture.componentInstance.activeProjectId()).toBe('uploaded-two');
     dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(dialog.close).toHaveBeenCalledTimes(2);
     const trigger = element.querySelector('.theme-change') as HTMLButtonElement;
