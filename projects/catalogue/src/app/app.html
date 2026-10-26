@@ -6,7 +6,7 @@
   <div class="welcome-roles" role="group" aria-label="Choose your role"><button type="button" (click)="setRole('developer'); welcome.close()"><app-icon name="code" />I am a developer</button><button type="button" (click)="setRole('designer'); welcome.close()"><app-icon name="layers" />I am a designer</button></div>
   <p class="welcome-signoff">.... and always an Indicer! &lt;3</p>
 </dialog>
-<div class="demo-ribbon" aria-label="Demo workspace" [hidden]="view() === 'create'"><span class="ribbon-title">INDICE / DEMO</span><div class="role-switcher" role="group" aria-labelledby="demo-role-label"><span id="demo-role-label" class="role-label">Demo role</span><div class="role-options"><label class="role-choice"><input #designerRole type="radio" name="demo-role" value="designer" [checked]="role() === 'designer'" (change)="setRole('designer')" /><span>Designer</span></label><label class="role-choice"><input #developerRole type="radio" name="demo-role" value="developer" [checked]="role() === 'developer'" (change)="setRole('developer')" /><span>Developer</span></label></div></div></div>
+<div class="demo-ribbon" aria-label="Demo workspace"><span class="ribbon-title">INDICE / DEMO</span><div class="role-switcher" role="group" aria-labelledby="demo-role-label"><span id="demo-role-label" class="role-label">Demo role</span><div class="role-options"><label class="role-choice"><input #designerRole type="radio" name="demo-role" value="designer" [checked]="role() === 'designer'" (change)="setRole('designer')" /><span>Designer</span></label><label class="role-choice"><input #developerRole type="radio" name="demo-role" value="developer" [checked]="role() === 'developer'" (change)="setRole('developer')" /><span>Developer</span></label></div></div></div>
 <aside #sidebar class="sidebar" [class.open]="menuOpen()" aria-label="Catalogue navigation">
   <a class="brand" href="/" aria-label="Indice home"><img src="assets/INDICE-logo-text-only.svg" alt="Indice" width="160" height="32" /></a>
   <div class="sidebar-tools"><span>Library</span><button type="button" class="icon-button" aria-label="Collapse all categories" title="Collapse all categories" (click)="collapseAll(sidebar)"><app-icon name="collapse" /></button></div>
@@ -39,7 +39,7 @@
 </aside>
 @if (menuOpen()) { <button class="scrim" aria-label="Close navigation" (click)="menuOpen.set(false)"></button> }
 <div class="workspace">
-  <header class="topbar">
+  <header class="topbar" [hidden]="view() === 'create'">
     <button class="icon-button mobile-menu" type="button" title="Toggle navigation" aria-label="Toggle navigation" [attr.aria-expanded]="menuOpen()" (click)="menuOpen.set(!menuOpen())"><app-icon [name]="menuOpen() ? 'close' : 'menu'" /></button>
     <div class="system-context">@if (currentProject()?.logo; as logo) { <img class="project-header-logo" [src]="logo" [alt]="(currentProject()?.name ?? 'Project') + ' logo'" /> }<div class="system-name">Design System <span class="system-version">0.0</span></div><div class="theme-context"><span>Project: {{ currentProject()?.name ?? 'Base library' }}</span><button #themeTrigger type="button" class="source-link theme-change" (click)="openThemeChooser(themeChooser)"><app-icon name="change" /><span>Change project</span></button></div></div>
     <div class="topbar-actions" [style.display]="role() === 'designer' ? null : 'none'">

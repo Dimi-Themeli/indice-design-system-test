@@ -13,7 +13,7 @@ import { Project, loadProjectState, saveProjectState } from './project-data';
   selector: 'app-root',
   styleUrls: ['./app.css', './sidebar.css', './theme-chooser.css', './project-wizard.css', './welcome.css'],
   templateUrl: './app.html',
-  host: { '(document:keydown.escape)': 'menuOpen.set(false)', '[attr.data-role]': 'role()', '[class.creating-project]': "view() === 'create'" },
+  host: { '(document:keydown.escape)': 'menuOpen.set(false)', '[attr.data-role]': 'role()' },
 })
 export class App {
   readonly categories = [

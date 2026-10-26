@@ -329,8 +329,8 @@ describe('App', () => {
     trigger.click();
     await fixture.whenStable();
     expect(fixture.componentInstance.view()).toBe('create');
-    expect(fixture.nativeElement.classList.contains('creating-project')).toBe(true);
-    expect((element.querySelector('.demo-ribbon') as HTMLElement).hidden).toBe(true);
+    expect((element.querySelector('.demo-ribbon') as HTMLElement).hidden).toBe(false);
+    expect((element.querySelector('.topbar') as HTMLElement).hidden).toBe(true);
     expect(element.querySelector('app-projects h1')?.textContent).toBe('Add project');
     expect(element.querySelector('.project-dialog')).toBeNull();
     (element.querySelector('.demo-ribbon input[value="developer"]') as HTMLInputElement).click();
@@ -338,8 +338,8 @@ describe('App', () => {
     expect(actions.style.display).toBe('none');
     expect(trigger.disabled).toBe(true);
     expect(fixture.componentInstance.view()).toBe('manage');
-    expect(fixture.nativeElement.classList.contains('creating-project')).toBe(false);
     expect((element.querySelector('.demo-ribbon') as HTMLElement).hidden).toBe(false);
+    expect((element.querySelector('.topbar') as HTMLElement).hidden).toBe(false);
     expect(element.querySelector('app-projects .delete-action')).toBeNull();
   });
 
