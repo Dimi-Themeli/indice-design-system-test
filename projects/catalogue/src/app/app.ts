@@ -30,11 +30,10 @@ export class App {
   readonly role = signal<'designer' | 'developer'>('developer');
   private readonly savedProjects = loadProjectState();
   readonly projects = signal<Project[]>(this.savedProjects.projects);
-  readonly uploadedProjects = computed(() => this.projects().filter(project => project.status === 'Draft'));
   readonly activeProjectId = signal<string | null>(this.savedProjects.activeId);
   readonly currentProject = computed(() => this.projects().find(project => project.id === this.activeProjectId()) ?? null);
   readonly previewProjectId = signal<string | null>(this.savedProjects.activeId);
-  readonly selectedProjectPreview = computed(() => this.uploadedProjects().find(project => project.id === this.previewProjectId()) ?? null);
+  readonly selectedProjectPreview = computed(() => this.projects().find(project => project.id === this.previewProjectId()) ?? null);
   readonly view = signal<'library' | 'create' | 'manage'>('library');
   readonly projectError = signal(this.savedProjects.warning);
   readonly pendingDeletion = signal<Project | null>(null);
@@ -100,7 +99,7 @@ export class App {
   openThemeChooser(dialog: HTMLDialogElement) {
     this.menuOpen.set(false);
     const activeId = this.activeProjectId();
-    this.previewProjectId.set(this.uploadedProjects().some(project => project.id === activeId) ? activeId : this.uploadedProjects()[0]?.id ?? null);
+    this.previewProjectId.set(this.projects().some(project => project.id === activeId) ? activeId : this.projects()[0]?.id ?? null);
     dialog.showModal();
   }
 
@@ -113,7 +112,7 @@ export class App {
   }
 
   selectProjectPreview(id: string) {
-    if (this.uploadedProjects().some(project => project.id === id)) this.previewProjectId.set(id);
+    if (this.projects().some(project => project.id === id)) this.previewProjectId.set(id);
   }
 
   private commitProjects(projects: Project[], activeId: string | null): boolean {
@@ -157,7 +156,7 @@ export class App {
   requestProjectDeletion(request: { project: Project; trigger: HTMLButtonElement }, dialog: HTMLDialogElement) {
     if (this.role() !== 'designer') return;
     const project = this.projects().find(project => project.id === request.project.id);
-    if (!project) return;
+    if (!project || project.status === 'Base') return;
     this.pendingDeletion.set(project);
     this.deleteTrigger = request.trigger;
     dialog.showModal();
@@ -165,7 +164,7 @@ export class App {
 
   confirmProjectDeletion(dialog: HTMLDialogElement) {
     const project = this.pendingDeletion();
-    if (!project || this.role() !== 'designer') return;
+    if (!project || project.status === 'Base' || this.role() !== 'designer') return;
     const remaining = this.projects().filter(existing => existing.id !== project.id);
     const activeId = this.activeProjectId() === project.id ? remaining[0]?.id ?? null : this.activeProjectId();
     if (!this.commitProjects(remaining, activeId)) return;

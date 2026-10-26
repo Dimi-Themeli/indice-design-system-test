@@ -1,3 +1,5 @@
+import { IAM_TOKENS } from './iam-tokens';
+
 export interface Project {
   id: string;
   name: string;
@@ -20,19 +22,19 @@ export interface ProjectState { projects: Project[]; activeId: string | null; wa
 export const PROJECT_STORAGE_KEY = 'indice-demo-projects-v1';
 export const PROJECT_MODES = ['Light', 'Dark', 'Light & dark'] as const;
 export const PROJECT_PLATFORMS = ['Desktop app', 'Mobile app', 'Desktop & mobile'] as const;
-export const BASE_PROJECTS: Project[] = [
-  { id: 'company-a', name: 'Company A', modes: 'Light', platform: 'Desktop app', status: 'Base' },
-  { id: 'company-b', name: 'Company B / Workspace', modes: 'Light & dark', platform: 'Desktop app', status: 'Sample' },
-  { id: 'company-c', name: 'Company C / Pocket', modes: 'Light', platform: 'Mobile app', status: 'Sample' },
-  { id: 'company-d', name: 'Company D / Console', modes: 'Dark', platform: 'Desktop & mobile', status: 'Sample' },
-].map(project => ({ ...project, status: project.status as Project['status'], customer: '', description: '', figmaUrl: '', logoDark: null, logoLight: null, images: [`assets/theme-${project.id}.png`], tokenFileName: '', tokens: null, tokenCount: 0, createdAt: '' }));
+export const BASE_PROJECT_ID = 'iam';
+export const BASE_PROJECTS: Project[] = [{
+  id: BASE_PROJECT_ID, name: 'IAM', customer: '', description: 'The original Indice design system.', modes: 'Light', platform: 'Desktop app', figmaUrl: '',
+  logoDark: null, logoLight: null, images: [], tokenFileName: 'tokens-IAM-20261022-01.json', tokens: IAM_TOKENS, tokenCount: 208, createdAt: '', status: 'Base',
+}];
+const BASE_PROJECT_IDS = new Set(['company-a', 'company-b', 'company-c', 'company-d', ...BASE_PROJECTS.map(project => project.id)]);
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
 function isUploadedImage(value: unknown): value is string {
-  return typeof value === 'string' && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=+$/.test(value);
+  return typeof value === 'string' && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
 }
 
 export function parseTokenFile(source: string): { tokens: Record<string, unknown>; count: number } {
@@ -125,24 +127,26 @@ function isProject(value: unknown): value is Project {
 }
 
 export function loadProjectState(storage?: Pick<Storage, 'getItem'>): ProjectState {
-  const fallback = () => ({ projects: structuredClone(BASE_PROJECTS), activeId: 'company-a', warning: '' });
+  const fallback = () => ({ projects: structuredClone(BASE_PROJECTS), activeId: BASE_PROJECT_ID, warning: '' });
   try {
     const source = (storage ?? localStorage).getItem(PROJECT_STORAGE_KEY);
     if (!source) return fallback();
     const parsed: unknown = JSON.parse(source);
     if (!isObject(parsed) || parsed['version'] !== 1 || !Array.isArray(parsed['projects']) || !parsed['projects'].every(isProject)) throw new Error('Invalid project data');
-    const projects = (parsed['projects'] as Project[]).map(project => {
+    const uploaded = (parsed['projects'] as Project[]).filter(project => project.status === 'Draft' && !BASE_PROJECT_IDS.has(project.id)).map(project => {
       const { logo, ...savedProject } = project as Project & { logo?: string | null };
       return { ...savedProject, logoDark: project.logoDark ?? null, logoLight: project.logoLight ?? logo ?? null };
     });
+    const projects = [...structuredClone(BASE_PROJECTS), ...uploaded];
     if (new Set(projects.map(project => project.id)).size !== projects.length) throw new Error('Duplicate project identifiers');
-    return { projects, activeId: projects.some(project => project.id === parsed['activeId']) ? String(parsed['activeId']) : projects[0]?.id ?? null, warning: '' };
+    return { projects, activeId: projects.some(project => project.id === parsed['activeId']) ? String(parsed['activeId']) : BASE_PROJECT_ID, warning: '' };
   } catch {
-    return { ...fallback(), warning: 'Saved projects could not be loaded. Base examples are shown instead.' };
+    return { ...fallback(), warning: 'Saved projects could not be loaded. Only the IAM project is shown.' };
   }
 }
 
 export function saveProjectState(projects: Project[], activeId: string | null, storage?: Pick<Storage, 'setItem'>) {
-  try { (storage ?? localStorage).setItem(PROJECT_STORAGE_KEY, JSON.stringify({ version: 1, projects, activeId })); }
+  const uploaded = projects.filter(project => !BASE_PROJECT_IDS.has(project.id));
+  try { (storage ?? localStorage).setItem(PROJECT_STORAGE_KEY, JSON.stringify({ version: 1, projects: uploaded, activeId })); }
   catch { throw new Error('Projects could not be saved in this browser. Free storage space or remove reference images, then try again.'); }
 }

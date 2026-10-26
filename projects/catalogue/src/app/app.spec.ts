@@ -84,23 +84,30 @@ describe('App', () => {
     expect(otherProjectVariables['--indice-colours-main-primary-600']).toBe('#e5861a');
   });
 
-  it('persists projects, preserves an empty list and reports corrupt or unavailable storage', () => {
-    saveProjectState(BASE_PROJECTS, 'company-b');
-    expect(loadProjectState().activeId).toBe('company-b');
-    const legacyProject = { ...structuredClone(BASE_PROJECTS[0]) } as Partial<typeof BASE_PROJECTS[number]>;
+  it('persists only uploaded projects, keeps IAM built in and reports corrupt or unavailable storage', () => {
+    const uploaded = { ...structuredClone(BASE_PROJECTS[0]), id: 'uploaded', name: 'Uploaded', status: 'Draft' as const, tokens: { color: '#000000' } };
+    saveProjectState([...BASE_PROJECTS, uploaded], 'uploaded');
+    expect(JSON.parse(localStorage.getItem(PROJECT_STORAGE_KEY)!).projects.map((project: { id: string }) => project.id)).toEqual(['uploaded']);
+    expect(loadProjectState().activeId).toBe('uploaded');
+    expect(loadProjectState().projects.map(project => project.id)).toEqual(['iam', 'uploaded']);
+    const legacySample = { ...structuredClone(BASE_PROJECTS[0]), id: 'company-b', name: 'Company B', status: 'Sample', tokens: null, images: ['assets/theme-company-b.png'] };
+    expect(loadProjectState({ getItem: () => JSON.stringify({ version: 1, projects: [legacySample], activeId: 'company-a' }) })).toMatchObject({ activeId: 'iam', warning: '' });
+    const legacyProject = { ...uploaded } as Partial<typeof uploaded>;
     delete legacyProject.logoDark;
     delete legacyProject.logoLight;
     Object.assign(legacyProject, { logo: 'data:image/png;base64,AA==' });
     const legacyState = loadProjectState({ getItem: () => JSON.stringify({ version: 1, projects: [legacyProject], activeId: legacyProject.id }) });
-    expect(legacyState.projects[0].logoLight).toBe('data:image/png;base64,AA==');
-    expect(legacyState.projects[0].logoDark).toBeNull();
-    const projectWithLogo = { ...structuredClone(BASE_PROJECTS[0]), logoDark: 'data:image/png;base64,AQ==', logoLight: 'data:image/png;base64,AA==' };
+    expect(legacyState.projects[1].logoLight).toBe('data:image/png;base64,AA==');
+    expect(legacyState.projects[1].logoDark).toBeNull();
+    const projectWithLogo = { ...uploaded, logoDark: 'data:image/png;base64,AQID', logoLight: 'data:image/png;base64,AA==' };
     saveProjectState([projectWithLogo], projectWithLogo.id);
-    expect(loadProjectState().projects[0].logoLight).toBe(projectWithLogo.logoLight);
-    expect(loadProjectState().projects[0].logoDark).toBe(projectWithLogo.logoDark);
+    expect(loadProjectState().warning).toBe('');
+    expect(loadProjectState().projects[1].logoLight).toBe(projectWithLogo.logoLight);
+    expect(loadProjectState().projects[1].logoDark).toBe(projectWithLogo.logoDark);
     saveProjectState([], null);
-    expect(loadProjectState().projects).toEqual([]);
-    expect(loadProjectState().activeId).toBeNull();
+    expect(loadProjectState().projects.map(project => project.id)).toEqual(['iam']);
+    expect(loadProjectState().activeId).toBe('iam');
+    expect(loadProjectState().projects[0].tokens).not.toBeNull();
     expect(loadProjectState({ getItem: () => '{' }).warning).toBeTruthy();
     expect(() => saveProjectState([], null, { setItem: () => { throw new Error('Quota'); } })).toThrow('could not be saved');
   });
@@ -210,9 +217,9 @@ describe('App', () => {
     await fixture.whenStable();
     expect(document.documentElement.style.getPropertyValue('--indice-colours-main-primary-600')).toBe('#005b97');
     expect(document.documentElement.style.getPropertyValue('--colours-surface-element-primary-default')).toBe('#005b97');
-    app.activateProject('company-a');
+    app.activateProject('iam');
     await fixture.whenStable();
-    expect(document.documentElement.style.getPropertyValue('--indice-colours-main-primary-600')).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--indice-colours-main-primary-600')).toBe('#e5861a');
     expect(document.documentElement.style.getPropertyValue('--colours-surface-element-primary-default')).toBe('');
   });
 
@@ -268,25 +275,23 @@ describe('App', () => {
     await fixture.whenStable();
     expect(dialog.showModal).toHaveBeenCalledOnce();
     expect(dialog.textContent).toContain('New project');
-    expect(component.projects().length).toBe(5);
+    expect(component.projects().length).toBe(2);
     (dialog.querySelector('.project-text-link') as HTMLButtonElement).click();
     dialog.dispatchEvent(new Event('close'));
-    expect(component.projects().length).toBe(5);
+    expect(component.projects().length).toBe(2);
     trigger.click();
     (dialog.querySelector('.confirm-delete') as HTMLButtonElement).click();
     await fixture.whenStable();
-    expect(component.projects().length).toBe(4);
-    expect(component.activeProjectId()).toBe('company-a');
+    expect(component.projects().length).toBe(1);
+    expect(component.activeProjectId()).toBe('iam');
     expect(loadProjectState().projects.some(saved => saved.id === project.id)).toBe(false);
-    expect(loadProjectState().activeId).toBe('company-a');
-    component.projects.set([BASE_PROJECTS[0]]);
-    component.activeProjectId.set('company-a');
+    expect(loadProjectState().activeId).toBe('iam');
+    expect(element.querySelector('[aria-label="Delete IAM"]')).toBeNull();
     component.requestProjectDeletion({ project: BASE_PROJECTS[0], trigger }, dialog);
     component.confirmProjectDeletion(dialog);
     await fixture.whenStable();
-    expect(component.currentProject()).toBeNull();
-    expect(loadProjectState().projects).toEqual([]);
-    expect(element.querySelector('app-projects')?.textContent).toContain('No projects yet');
+    expect(component.currentProject()?.id).toBe('iam');
+    expect(loadProjectState().projects.map(saved => saved.id)).toEqual(['iam']);
   });
 
   it('keeps projects intact on storage failure and rejects developer mutations', async () => {
@@ -294,14 +299,14 @@ describe('App', () => {
     const component = fixture.componentInstance;
     const project = { ...structuredClone(BASE_PROJECTS[0]), id: 'new-project', name: 'New project', tokens: { color: '#000000' } };
     component.createProject(project);
-    expect(component.projects().length).toBe(4);
+    expect(component.projects().length).toBe(1);
     component.setRole('designer');
     const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Quota'); });
     try {
       component.createProject(project);
-      expect(component.projects().length).toBe(4);
+      expect(component.projects().length).toBe(1);
       expect(component.projectError()).toContain('could not be saved');
-      expect(component.activeProjectId()).toBe('company-a');
+      expect(component.activeProjectId()).toBe('iam');
     } finally { write.mockRestore(); }
     component.setRole('developer');
     const dialog = document.createElement('dialog');
@@ -401,7 +406,7 @@ describe('App', () => {
     const app = fixture.componentInstance;
     const uploadedProjects = [
       { ...structuredClone(BASE_PROJECTS[0]), id: 'uploaded-one', name: 'Uploaded One', status: 'Draft' as const, tokens: { color: '#111111' }, logoLight: 'data:image/png;base64,AA==' },
-      { ...structuredClone(BASE_PROJECTS[1]), id: 'uploaded-two', name: 'Uploaded Two', status: 'Draft' as const, tokens: { color: '#222222' }, logoLight: 'data:image/png;base64,AQ==' },
+      { ...structuredClone(BASE_PROJECTS[0]), id: 'uploaded-two', name: 'Uploaded Two', status: 'Draft' as const, tokens: { color: '#222222' }, logoLight: 'data:image/png;base64,AQ==' },
     ];
     app.projects.set([...BASE_PROJECTS, ...uploadedProjects]);
     app.activeProjectId.set(uploadedProjects[0].id);
@@ -420,16 +425,17 @@ describe('App', () => {
     expect(dialog.showModal).toHaveBeenCalledOnce();
     expect(fixture.componentInstance.menuOpen()).toBe(false);
     const choices = dialog.querySelectorAll<HTMLInputElement>('input[name="project-choice"]');
-    expect(choices.length).toBe(2);
-    expect(choices[0].value).toBe('uploaded-one');
-    expect(choices[0].checked).toBe(true);
+    expect(choices.length).toBe(3);
+    expect(choices[0].value).toBe('iam');
+    expect(choices[1].value).toBe('uploaded-one');
+    expect(choices[1].checked).toBe(true);
     expect(dialog.querySelectorAll('img.theme-preview').length).toBe(2);
-    expect(dialog.textContent).not.toContain('Company A');
+    expect(dialog.textContent).toContain('IAM');
     expect(dialog.textContent).not.toContain('Company B / Workspace');
-    choices[1].click();
+    choices[2].click();
     await fixture.whenStable();
     expect(fixture.componentInstance.previewProjectId()).toBe('uploaded-two');
-    expect(dialog.querySelector('.theme-dialog-actions')?.textContent).toContain('Draft / Base component styling');
+    expect(dialog.querySelector('.theme-dialog-actions')?.textContent).toContain('Uploaded project');
     expect(element.querySelector('.theme-context')?.textContent).toContain('Project: Uploaded One');
     expect(dialog.querySelectorAll('.is-selected').length).toBe(1);
     fixture.componentInstance.applyProject(dialog);
