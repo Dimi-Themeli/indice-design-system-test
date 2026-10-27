@@ -3,7 +3,7 @@
 .back-link:hover { color: var(--ink); text-decoration: underline; }
 .projects-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin: 24px 0 32px; }
 .projects-eyebrow { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
-h1 { margin: 0; font: 400 32px/1.25 Geologica, sans-serif; }
+h1 { margin: 0; font: 400 32px/1.25 Manrope, sans-serif; }
 h2 { margin: 0; font-size: 16px; font-weight: 650; }
 .project-form { max-width: 900px; }
 .form-section { padding: 24px 0; border-top: 1px solid var(--line); }
@@ -19,7 +19,11 @@ textarea { resize: vertical; }
 .required-mark { color: var(--ink); }
 .upload-status { margin-top: 8px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .project-error { color: var(--error); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.token-warning { margin: 12px 0 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.token-warning p { margin: 0; }
+.token-warning ul { margin: 6px 0 0; padding-left: 18px; }
 .image-upload { margin-top: 20px; }
+.icon-library-field { margin-top: 20px; }
 .reference-images { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
 .reference-images img { display: block; width: 100%; aspect-ratio: 8 / 5; object-fit: contain; background: var(--surface-muted); border: 1px solid var(--line); border-radius: 4px; }
 .logo-preview { display: block; max-width: min(100%, 240px); max-height: 120px; margin-top: 16px; object-fit: contain; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-muted); }

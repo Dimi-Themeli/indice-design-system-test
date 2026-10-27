@@ -20,6 +20,10 @@
   --border-default: transparent;
   --border-hover: transparent;
   --border-pressed: transparent;
+  --glyph-default: var(--colours-icons-on-filled-button-black, var(--indice-colours-main-global-0, #fff));
+  --glyph-hover: var(--glyph-default);
+  --glyph-pressed: var(--glyph-default);
+  --glyph: var(--glyph-default);
   --icon: var(--icon-default);
   --fill: var(--fill-default);
   --text: var(--text-default);
@@ -37,7 +41,7 @@
   box-shadow: inset 0 0 0 1px var(--border);
   background: var(--fill);
   color: var(--text);
-  font: 300 16px/24px var(--font-family-body, var(--indice-fonts-family-geologica, 'Geologica')), sans-serif;
+  font: var(--font-weight-200, 300) 16px/24px var(--font-family-body, var(--indice-fonts-family-geologica, 'Geologica')), sans-serif;
   font-variation-settings: 'CRSV' 0, 'SHRP' 0;
   letter-spacing: 0;
   vertical-align: middle;
@@ -89,6 +93,7 @@
   --fill-pressed: var(--colours-surface-element-secondary-pressed, var(--indice-colours-main-secondary-800, #0f4a55));
   --text-default: var(--colours-text-white-only, var(--indice-colours-main-global-0, #fff));
   --icon-default: var(--glyph-teal);
+  --glyph-default: var(--colours-icons-on-filled-button, var(--indice-colours-main-global-0, #fff));
 }
 
 :host([data-variant='black-outline']), :host([data-variant='grey-fill']) {
@@ -101,6 +106,9 @@
   --icon-default: var(--glyph-dark-default);
   --icon-hover: var(--glyph-dark-hover);
   --icon-pressed: var(--glyph-dark-pressed);
+  --glyph-default: var(--colours-icons-element-primary-default, var(--indice-colours-main-neutral-900, #201f1e));
+  --glyph-hover: var(--colours-icons-element-primary-hover, var(--indice-colours-main-neutral-600, #6f6d68));
+  --glyph-pressed: var(--colours-icons-element-primary-pressed, var(--indice-colours-main-neutral-950, #141312));
 }
 
 :host([data-variant='black-outline']) {
@@ -115,6 +123,7 @@
 
 :host(:not([data-preview-state]):hover:enabled), :host([data-preview-state='hover']:enabled) {
   --icon: var(--icon-hover);
+  --glyph: var(--glyph-hover);
   --fill: var(--fill-hover);
   --text: var(--text-hover);
   --border: var(--border-hover);
@@ -122,6 +131,7 @@
 
 :host(:not([data-preview-state]):active:enabled), :host([data-preview-state='pressed']:enabled) {
   --icon: var(--icon-pressed);
+  --glyph: var(--glyph-pressed);
   --fill: var(--fill-pressed);
   --text: var(--text-pressed);
   --border: var(--border-pressed);
@@ -129,6 +139,7 @@
 
 :host(:disabled), :host([data-size='xx-large']:disabled) {
   --icon: var(--glyph-disabled);
+  --glyph: var(--colours-icons-disabled, var(--indice-colours-main-neutral-500, #8e8b85));
   --fill: var(--colours-surface-element-disabled-reverse, var(--indice-colours-main-neutral-100, #efeeea));
   --text: var(--colours-text-on-button-disabled, var(--indice-colours-main-neutral-500, #8e8b85));
   --border: transparent;
@@ -137,6 +148,6 @@
 }
 
 :host(:focus-visible) { outline: 2px solid var(--indice-colours-main-secondary-600, #2b7f8d); outline-offset: 3px; }
-.icon-button-glyph { display: block; flex: 0 0 auto; width: var(--icon-button-glyph-size); height: var(--icon-button-glyph-size); background-image: var(--icon); background-position: center; background-repeat: no-repeat; background-size: var(--icon-button-glyph-size) var(--icon-button-glyph-size); }
+.icon-button-glyph { display: block; flex: 0 0 auto; width: var(--icon-button-glyph-size); height: var(--icon-button-glyph-size); background-color: var(--glyph); -webkit-mask: var(--icon) center / var(--icon-button-glyph-size) var(--icon-button-glyph-size) no-repeat; mask: var(--icon) center / var(--icon-button-glyph-size) var(--icon-button-glyph-size) no-repeat; }
 .icon-button-caption { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; max-width: 100%; padding: 0 4px; text-align: center; }
 @media (forced-colors: active) { :host { border: 1px solid ButtonText; } :host(:disabled) { color: GrayText; border-color: GrayText; } }

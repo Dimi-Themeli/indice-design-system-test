@@ -24,9 +24,11 @@
     <div class="playground-controls">
       <label>Variant<select aria-label="Button variant" (change)="setVariant($any($event.target).value)"><option value="" disabled [selected]="!hasSelection()">Select variant</option>@for (item of variants; track item.id) { <option [value]="item.id" [selected]="hasSelection() && variant() === item.id">{{ item.kind }} / {{ item.appearance }}</option> }</select></label>
       <label>Label<input type="text" aria-label="Button label" maxlength="80" [value]="label()" (input)="label.set($any($event.target).value)" /></label>
-      <div class="toggle-controls"><label><input type="checkbox" [checked]="leftIcon()" (change)="leftIcon.set($any($event.target).checked)" />Left icon</label><label><input type="checkbox" [checked]="rightIcon()" (change)="rightIcon.set($any($event.target).checked)" />Right icon</label><label><input type="checkbox" [checked]="disabled()" (change)="disabled.set($any($event.target).checked)" />Disabled</label></div>
+      <app-icon-picker label="Left icon" [library]="iconLibrary()" [(value)]="leftIconSource" [(enabled)]="leftIcon" />
+      <app-icon-picker label="Right icon" [library]="iconLibrary()" [(value)]="rightIconSource" [(enabled)]="rightIcon" />
+      <div class="toggle-controls"><label><input type="checkbox" [checked]="disabled()" (change)="disabled.set($any($event.target).checked)" />Disabled</label></div>
     </div>
-    <div class="live-preview"><button indiceButton [variant]="variant()" [disabled]="disabled()" [showLeftIcon]="leftIcon()" [showRightIcon]="rightIcon()" [attr.aria-label]="label() || 'Button preview'" (click)="activations.set(activations() + 1)">{{ label() }}</button></div>
+    <div class="live-preview"><button indiceButton [variant]="variant()" [disabled]="disabled()" [showLeftIcon]="leftIcon()" [showRightIcon]="rightIcon()" [leftIcon]="leftIconSource()" [rightIcon]="rightIconSource()" [attr.aria-label]="label() || 'Button preview'" (click)="activations.set(activations() + 1)">{{ label() }}</button></div>
     <div class="preview-meta"><span role="status">{{ activations() }} activations</span><span>Geologica / 16px / 24px</span></div>
     <div class="code-heading"><h2>Angular</h2><button type="button" title="Copy Angular markup" aria-label="Copy Angular markup" (click)="copyCode()"><app-icon name="copy" /></button></div>
     <pre><code>{{ code() }}</code></pre>

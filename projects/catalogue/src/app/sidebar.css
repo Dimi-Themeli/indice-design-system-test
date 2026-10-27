@@ -7,3 +7,7 @@
 .chapter:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 .chapter-chevron { margin-left: auto; }
 .nav-section[open] > .chapter .chapter-chevron { transform: rotate(90deg); }
+.sidebar-bottom { padding-inline: 0; }
+.sidebar-bottom button.chapter { border: 0; background: transparent; color: var(--ink); font-family: inherit; text-align: left; }
+.sidebar-bottom button.chapter:hover, .sidebar-bottom button.chapter.active { background: var(--surface-muted); }
+.topbar-actions button[hidden] { display: none; }

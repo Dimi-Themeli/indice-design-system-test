@@ -20,6 +20,8 @@ const utility = await readFile(path.join(root, 'projects/catalogue/src/app/usage
 const compiled = ts.transpileModule(utility, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
 const { buildConfiguredUsage, buildUsageExample } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 const examples = [
+  ['button-custom-icons', 'button', '<button indiceButton leftIcon="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E" rightIcon="icons/star.svg">Save</button>', {}],
+  ['field-custom-icons', 'field', '<indice-field label="Search" actionIcon="icons/search.svg" infoIcon="icons/star.svg" actionLabel="Run search" info="Search help" [formControl]="fieldControl" [error]="fieldError" />', {}],
   ['button', 'button', '<button indiceButton variant="delete-clear" [showLeftIcon]="false">Save `draft` $&#123;name&#125;</button>', {}],
   ['icon', 'icon-button', '<button indiceIconButton label="Open administration" variant="teal-filled" size="xx-large" caption="Admin"></button>', {}],
   ['social', 'social-button', '<button indiceSocialButton provider="google" [disabled]="true"></button>', {}],

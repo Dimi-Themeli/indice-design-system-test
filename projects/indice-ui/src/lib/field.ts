@@ -25,6 +25,8 @@ export class IndiceField implements ControlValueAccessor {
   readonly readOnly = input(false, { transform: booleanAttribute });
   readonly showLabel = input(true, { transform: booleanAttribute });
   readonly showIcon = input(true, { transform: booleanAttribute });
+  readonly actionIcon = input('');
+  readonly infoIcon = input('');
   readonly info = input('');
   readonly invalid = input(false, { transform: booleanAttribute });
   readonly error = input('');

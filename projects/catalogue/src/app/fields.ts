@@ -1,9 +1,11 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, effect, input, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FieldLayout, FieldType, IndiceField } from 'indice-ui';
 import { Icon } from './icon';
 import { UseIt } from './use-it';
+import { IconPicker } from './icon-picker';
+import { DEFAULT_ICON_LIBRARY } from './icon-library-data';
 
 export const FIELD_EXAMPLES = [
   { id: 'empty-idle-vertical', kind: 'empty', state: 'idle', layout: 'vertical', value: '' },
@@ -21,11 +23,15 @@ export const FIELD_EXAMPLES = [
 
 @Component({
   selector: 'app-field-catalogue',
-  imports: [IndiceField, Icon, ReactiveFormsModule, UseIt],
+  imports: [IndiceField, Icon, ReactiveFormsModule, UseIt, IconPicker],
   templateUrl: './fields.html',
   styleUrls: ['./buttons.css', './fields.css'],
 })
 export class FieldCatalogue {
+  readonly iconLibrary = input(DEFAULT_ICON_LIBRARY);
+  readonly actionIconSource = signal('');
+  readonly infoIconSource = signal('');
+  readonly actionLabel = signal('View value');
   readonly examples = FIELD_EXAMPLES;
   readonly view = signal<'states' | 'playground'>('states');
   readonly query = signal('');
@@ -60,7 +66,15 @@ export class FieldCatalogue {
     if (this.control.hasError('email')) return 'Enter a valid email address.';
     return '';
   });
-  readonly code = computed(() => `<indice-field\n  label="${this.escape(this.label() || 'Field preview')}"\n  [formControl]="fieldControl"\n  layout="${this.layout()}"\n  type="${this.type()}"\n  placeholder="${this.escape(this.placeholder())}"\n  [required]="${this.required()}"\n  [readOnly]="${this.readOnly()}"\n  [showLabel]="${this.showLabel()}"\n  [showIcon]="${this.showIcon()}"${this.showInfo() ? '\n  info="Field information"' : ''}${this.presetInvalid() ? '\n  [invalid]="true"' : ''}\n  ${this.presetError() ? `error="${this.escape(this.presetError())}"` : '[error]="fieldError"'}\n  [showErrorMessage]="${this.showErrorMessage()}"\n/>`);
+  readonly code = computed(() => `<indice-field\n  label="${this.escape(this.label() || 'Field preview')}"\n  [formControl]="fieldControl"\n  layout="${this.layout()}"\n  type="${this.type()}"\n  placeholder="${this.escape(this.placeholder())}"\n  [required]="${this.required()}"\n  [readOnly]="${this.readOnly()}"\n  [showLabel]="${this.showLabel()}"\n  [showIcon]="${this.showIcon()}"${this.showInfo() ? '\n  info="Field information"' : ''}${this.showIcon() && this.actionIconSource() ? `\n  actionIcon="${this.actionIconSource()}"` : ''}${this.showInfo() && this.infoIconSource() ? `\n  infoIcon="${this.infoIconSource()}"` : ''}\n  actionLabel="${this.escape(this.actionLabel() || 'Field action')}"${this.presetInvalid() ? '\n  [invalid]="true"' : ''}\n  ${this.presetError() ? `error="${this.escape(this.presetError())}"` : '[error]="fieldError"'}\n  [showErrorMessage]="${this.showErrorMessage()}"\n/>`);
+
+  constructor() {
+    effect(() => {
+      this.iconLibrary();
+      this.actionIconSource.set('');
+      this.infoIconSource.set('');
+    });
+  }
 
   selectExample(id: string) {
     const example = this.examples.find(example => example.id === id);

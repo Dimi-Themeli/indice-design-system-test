@@ -1,5 +1,5 @@
 <ng-template #information>
-  <button type="button" class="field-info" [attr.aria-label]="info()" [title]="info()" [disabled]="isDisabled()"><span aria-hidden="true"></span></button>
+  <button type="button" class="field-info" [attr.aria-label]="info()" [title]="info()" [disabled]="isDisabled()"><span [class.custom-icon]="!!infoIcon()" [style.mask-image]="infoIcon() ? 'url(' + infoIcon() + ')' : null" [style.-webkit-mask-image]="infoIcon() ? 'url(' + infoIcon() + ')' : null" aria-hidden="true"></span></button>
 </ng-template>
 <div class="field-layout" [class.horizontal]="layout() === 'horizontal'" [class.readonly]="readOnly()" [class.has-info]="!!info()" [class.no-label]="!showLabel()" [class.disabled]="isDisabled()" [class.invalid]="hasError()" [class.has-error-message]="errorVisible()">
   @if (showLabel()) {
@@ -8,7 +8,7 @@
   <div class="field-control">
     <input [id]="inputId()" [type]="effectiveType()" [value]="value()" [placeholder]="placeholder()" [disabled]="isDisabled()" [readOnly]="readOnly()" [required]="required() && !readOnly()" [attr.name]="name()" [attr.autocomplete]="autocomplete()" [attr.maxlength]="maxLength()" [attr.aria-label]="!showLabel() ? label() : null" [attr.aria-describedby]="descriptionIds()" [attr.aria-invalid]="hasError() ? 'true' : null" (input)="onInput($event)" (blur)="onBlur()" />
     @if (showIcon() && !(readOnly() && layout() === 'horizontal')) {
-      <button type="button" class="field-action" [attr.aria-label]="iconLabel()" [attr.aria-pressed]="type() === 'password' ? revealed() : null" [title]="iconLabel()" [disabled]="isDisabled()" (click)="onIconClick()"><span aria-hidden="true"></span></button>
+      <button type="button" class="field-action" [attr.aria-label]="iconLabel()" [attr.aria-pressed]="type() === 'password' ? revealed() : null" [title]="iconLabel()" [disabled]="isDisabled()" (click)="onIconClick()"><span [class.custom-icon]="!!actionIcon()" [style.mask-image]="actionIcon() ? 'url(' + actionIcon() + ')' : null" [style.-webkit-mask-image]="actionIcon() ? 'url(' + actionIcon() + ')' : null" aria-hidden="true"></span></button>
     }
   </div>
   @if (info() && layout() === 'horizontal' && !readOnly()) { <div class="field-external-info"><ng-container [ngTemplateOutlet]="information" /></div> }

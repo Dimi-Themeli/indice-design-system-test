@@ -49,16 +49,16 @@
     </details>
   </nav>
   </details>
-  <div class="sidebar-bottom"><a class="source-link" href="tokens/primitive.json" download="indice-primitives.json" title="Download source tokens" aria-label="Download source tokens"><app-icon name="download" /><span>Source JSON</span></a></div>
+  <div class="sidebar-bottom"><button type="button" class="chapter" (click)="showProjects('icon-libraries')" [class.active]="view() === 'icon-libraries'" [attr.aria-current]="view() === 'icon-libraries' ? 'page' : null"><app-icon name="icons" /><span>Icons libraries</span></button></div>
 </aside>
 @if (menuOpen()) { <button class="scrim" aria-label="Close navigation" (click)="menuOpen.set(false)"></button> }
 <div class="workspace">
   <header class="topbar" [hidden]="view() === 'create' || view() === 'edit'">
     <button class="icon-button mobile-menu" type="button" title="Toggle navigation" aria-label="Toggle navigation" [attr.aria-expanded]="menuOpen()" (click)="menuOpen.set(!menuOpen())"><app-icon [name]="menuOpen() ? 'close' : 'menu'" /></button>
-    <div class="system-context"><div class="system-name">Design System <span class="system-version">0.0</span></div><div class="theme-context"><label class="project-select"><span>Project</span><select name="active-project" aria-label="Current project" (change)="selectProject($any($event.target))">@for (project of projects(); track project.id) { <option [value]="project.id" [selected]="activeProjectId() === project.id">{{ project.name }}</option> }</select><app-icon class="project-select-chevron" name="chevron" /></label></div></div>
-    <div class="topbar-actions" [style.display]="role() === 'designer' ? null : 'none'">
-      <button type="button" class="add-project" [disabled]="role() !== 'designer'" title="Add project" (click)="showProjects('create')"><app-icon name="add" />Add project</button>
-      <button #manageTrigger type="button" class="icon-button manage-projects" aria-label="Manage projects" title="Manage projects" (click)="showProjects('manage')"><app-icon name="manage" /></button>
+    <div class="system-context"><div class="system-name">Design System <span class="system-version">0.0</span></div><div class="theme-context"><label class="project-select"><span>Project</span><select name="active-project" aria-label="Current project" (change)="selectProject($any($event.target))">@for (project of projects(); track project.id) { <option [value]="project.id" [selected]="activeProjectId() === project.id">{{ project.name }}</option> }</select><app-icon class="project-select-chevron" name="chevron" /></label><a class="source-link" href="tokens/primitive.json" download="indice-primitives.json" title="Download source tokens" aria-label="Download source tokens"><app-icon name="download" /><span>Source JSON</span></a></div></div>
+    <div class="topbar-actions">
+      <button type="button" class="add-project" [hidden]="role() !== 'designer'" [disabled]="role() !== 'designer'" title="Add project" (click)="showProjects('create')"><app-icon name="add" />Add project</button>
+      <button #manageTrigger type="button" class="icon-button manage-projects" [hidden]="role() !== 'designer'" aria-label="Manage projects" title="Manage projects" (click)="showProjects('manage')"><app-icon name="manage" /></button>
     </div>
   </header>
   <dialog #deleteDialog class="theme-dialog delete-project-dialog" aria-labelledby="delete-project-title" (click)="onThemeBackdrop($event)" (keydown.escape)="deleteDialog.close()" (close)="closeProjectDeletion(manageTrigger)">
@@ -68,18 +68,20 @@
     <footer class="theme-dialog-actions"><button type="button" class="project-text-link" autofocus (click)="deleteDialog.close()">Cancel</button><button type="button" class="confirm-delete" (click)="confirmProjectDeletion(deleteDialog)"><app-icon name="trash" />Delete project</button></footer>
   </dialog>
   <main #mainContent id="main" tabindex="-1" [style]="projectTheme()">
-    @if (view() !== 'library') {
+    @if (view() === 'icon-libraries') {
+      <app-icon-libraries [projects]="projects()" (back)="showProjects('library')" />
+    } @else if (view() !== 'library') {
       <app-projects [page]="view() === 'create' ? 'create' : view() === 'edit' ? 'edit' : 'manage'" [projects]="projects()" [editing]="editingProject()" [activeId]="activeProjectId()" [canEdit]="role() === 'designer'" [error]="projectError()" (create)="createProject($event)" (save)="saveProject($event)" (edit)="editProject($event)" (open)="activateProject($event)" (remove)="requestProjectDeletion($event, deleteDialog)" (navigate)="showProjects($event)" (exportData)="exportDemoData()" />
     } @else {
     <div class="page-heading"><div><div class="eyebrow">INDICE / {{ isComponent() ? 'COMPONENTS' : 'FOUNDATIONS' }}</div><h1>{{ title() }}<span class="heading-dot">.</span></h1></div><span class="total">@if (category() === 'buttons') { <strong>7</strong> variants / <strong>28</strong> states } @else if (category() === 'icon-buttons') { <strong>4</strong> variants / <strong>4</strong> sizes / <strong>64</strong> states } @else if (category() === 'social-buttons') { <strong>4</strong> providers / <strong>12</strong> states } @else if (category() === 'fields') { <strong>11</strong> variants / <strong>2</strong> layouts } @else { <strong>{{ tokens().length }}</strong> primitive tokens }</span></div>
     @if (category() === 'buttons') {
-      <app-button-catalogue />
+      <app-button-catalogue [iconLibrary]="currentProject()?.iconLibraryId ?? 'lucide'" />
     } @else if (category() === 'icon-buttons') {
       <app-icon-button-catalogue />
     } @else if (category() === 'social-buttons') {
       <app-social-button-catalogue />
     } @else if (category() === 'fields') {
-      <app-field-catalogue />
+      <app-field-catalogue [iconLibrary]="currentProject()?.iconLibraryId ?? 'lucide'" />
     } @else {
     <div class="toolbar">
       <label class="search"><app-icon name="search" /><input type="search" aria-label="Search all tokens" placeholder="Search tokens, names or values..." [value]="query()" (input)="query.set($any($event.target).value)" />@if (query()) { <button type="button" class="icon-button" title="Clear search" aria-label="Clear search" (click)="query.set('')"><app-icon name="close" /></button> }</label>

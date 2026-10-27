@@ -6,7 +6,7 @@
 .usage-dialog::backdrop { background: var(--overlay); }
 .usage-header { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding: 24px 28px 20px; border-bottom: 1px solid var(--line); }
 .package-version { font-size: 12px; color: var(--muted); }
-h2 { font: 500 24px/32px Geologica, sans-serif; margin: 6px 0 4px; }
+h2 { font: 500 24px/32px Manrope, sans-serif; margin: 6px 0 4px; }
 .usage-header code { font-size: 14px; overflow-wrap: anywhere; }
 .usage-header > div { min-width: 0; }
 .selector-reference { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }

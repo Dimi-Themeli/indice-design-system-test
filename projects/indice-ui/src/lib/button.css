@@ -19,6 +19,10 @@
   --button-text: var(--button-text-active);
   --button-fill: var(--button-fill-active);
   --button-border: var(--button-border-active);
+  --button-icon-active: var(--colours-icons-element-primary-default, var(--indice-colours-main-neutral-900, #201f1e));
+  --button-icon-hover: var(--colours-icons-element-primary-hover, var(--indice-colours-main-neutral-600, #6f6d68));
+  --button-icon-pressed: var(--colours-icons-element-primary-pressed, var(--indice-colours-main-neutral-950, #141312));
+  --button-icon: var(--button-icon-active);
   --button-left: var(--button-left-active);
   --button-right: var(--button-right-active);
   box-sizing: border-box;
@@ -36,7 +40,7 @@
   background: var(--button-fill);
   font-family: var(--font-family-body, var(--indice-fonts-family-geologica, 'Geologica')), sans-serif;
   font-size: 16px;
-  font-weight: 400;
+  font-weight: var(--font-weight-500, 400);
   line-height: 24px;
   font-variation-settings: 'CRSV' 0, 'SHRP' 0;
   letter-spacing: 0;
@@ -51,10 +55,14 @@
   --button-text-hover: var(--button-text-active);
   --button-text-pressed: var(--button-text-active);
   --button-fill-disabled: var(--colours-surface-element-disabled-reverse, var(--indice-colours-main-neutral-100, #efeeea));
+  --button-icon-active: var(--colours-icons-on-filled-button, var(--indice-colours-main-global-0, #fff));
+  --button-icon-hover: var(--button-icon-active);
+  --button-icon-pressed: var(--button-icon-active);
 }
 
 :host([data-variant='primary-filled']) {
   --button-text-active: var(--colours-text-on-filled-button-black, var(--indice-colours-main-global-0, #fff));
+  --button-icon-active: var(--colours-icons-on-filled-button-black, var(--indice-colours-main-global-0, #fff));
   --button-fill-active: var(--colours-surface-element-primary-default, var(--indice-colours-main-global-950, #000));
   --button-fill-hover: var(--colours-surface-element-primary-hover, var(--indice-colours-main-neutral-900, #201f1e));
   --button-fill-pressed: var(--colours-surface-element-primary-pressed, var(--indice-colours-main-neutral-950, #141312));
@@ -89,6 +97,9 @@
   --button-text-active: var(--colours-text-element-secondary-default, var(--indice-colours-main-secondary-600, #2b7f8d));
   --button-text-hover: var(--colours-text-element-secondary-hover, var(--indice-colours-main-secondary-400, #56b3c1));
   --button-text-pressed: var(--colours-text-element-secondary-pressed, var(--indice-colours-main-secondary-700, #1b6471));
+  --button-icon-active: var(--colours-icons-element-secondary-default, var(--indice-colours-main-secondary-600, #2b7f8d));
+  --button-icon-hover: var(--colours-icons-element-secondary-hover, var(--indice-colours-main-secondary-400, #56b3c1));
+  --button-icon-pressed: var(--colours-icons-element-secondary-pressed, var(--indice-colours-main-secondary-700, #1b6471));
   --button-left-active: url('./assets/c7510.svg');
   --button-right-active: url('./assets/f94d2.svg');
   --button-left-hover: url('./assets/72bbb.svg');
@@ -101,6 +112,9 @@
   --button-text-active: var(--colours-text-error, var(--indice-colours-functions-error-600, #cc1c2e));
   --button-text-hover: var(--colours-text-element-error-hover, var(--indice-colours-functions-error-500, #f52439));
   --button-text-pressed: var(--colours-text-element-error-pressed, var(--indice-colours-functions-error-800, #6d0a14));
+  --button-icon-active: var(--colours-icons-element-error-default, var(--indice-colours-functions-error-700, #9b1321));
+  --button-icon-hover: var(--colours-icons-element-error-hover, var(--indice-colours-functions-error-500, #f52439));
+  --button-icon-pressed: var(--colours-icons-element-error-pressed, var(--indice-colours-functions-error-800, #6d0a14));
   --button-left-active: url('./assets/b9456.svg');
   --button-right-active: url('./assets/11376.svg');
   --button-left-hover: url('./assets/04c62.svg');
@@ -120,6 +134,7 @@
   --button-text: var(--button-text-hover);
   --button-fill: var(--button-fill-hover);
   --button-border: var(--button-border-hover);
+  --button-icon: var(--button-icon-hover);
   --button-left: var(--button-left-hover);
   --button-right: var(--button-right-hover);
 }
@@ -128,6 +143,7 @@
   --button-text: var(--button-text-pressed);
   --button-fill: var(--button-fill-pressed);
   --button-border: var(--button-border-pressed);
+  --button-icon: var(--button-icon-pressed);
   --button-left: var(--button-left-pressed);
   --button-right: var(--button-right-pressed);
 }
@@ -136,14 +152,15 @@
   --button-text: var(--colours-text-on-button-disabled, var(--indice-colours-main-neutral-500, #8e8b85));
   --button-fill: var(--button-fill-disabled);
   --button-border: var(--button-border-disabled);
+  --button-icon: var(--colours-icons-disabled, var(--indice-colours-main-neutral-500, #8e8b85));
   --button-left: url('./assets/df463.svg');
   --button-right: url('./assets/d3df0.svg');
   cursor: not-allowed;
 }
 
 :host(:focus-visible) { outline: 2px solid var(--indice-colours-main-secondary-600, #2b7f8d); outline-offset: 3px; }
-.button-icon { display: block; width: 18px; height: 18px; flex: 0 0 18px; background-position: center; background-repeat: no-repeat; background-size: 18px 18px; }
-.leading { background-image: var(--button-left); }
-.trailing { background-image: var(--button-right); }
+.button-icon { display: block; width: 18px; height: 18px; flex: 0 0 18px; background-color: var(--button-icon); -webkit-mask-position: center; mask-position: center; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-size: 18px 18px; mask-size: 18px 18px; }
+.leading { -webkit-mask-image: var(--button-left); mask-image: var(--button-left); }
+.trailing { -webkit-mask-image: var(--button-right); mask-image: var(--button-right); }
 .button-label { min-width: 0; overflow-wrap: anywhere; }
 @media (forced-colors: active) { :host { border: 1px solid ButtonText; } :host(:disabled) { color: GrayText; border-color: GrayText; } }

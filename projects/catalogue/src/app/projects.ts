@@ -1,6 +1,7 @@
 import { Component, computed, effect, input, output, signal } from '@angular/core';
 import { Icon } from './icon';
-import { Project, PROJECT_MODES, PROJECT_PLATFORMS, parseTokenFile, validFigmaUrl } from './project-data';
+import { DEFAULT_ICON_LIBRARY, ICON_LIBRARIES } from './icon-library-data';
+import { COMPONENT_COLOUR_TOKENS, missingComponentTokens, Project, PROJECT_MODES, PROJECT_PLATFORMS, parseTokenFile, validFigmaUrl } from './project-data';
 
 type AssetKey = 'dark' | 'light' | 'thumbnail';
 interface ProjectDraft { name: string; customer: string; description: string; figmaUrl: string; modes: string; platform: string; }
@@ -27,12 +28,20 @@ export class Projects {
   readonly exportData = output<void>();
   readonly modes = PROJECT_MODES;
   readonly platforms = PROJECT_PLATFORMS;
+  readonly iconLibraries = ICON_LIBRARIES;
+  readonly iconLibraryId = signal<string>(DEFAULT_ICON_LIBRARY);
   readonly draft = signal<ProjectDraft>({ name: '', customer: '', description: '', figmaUrl: '', modes: 'Light', platform: 'Desktop app' });
   readonly query = signal('');
   readonly matches = computed(() => this.projects().filter(project => `${project.name} ${project.customer}`.toLowerCase().includes(this.query().trim().toLowerCase())));
   readonly tokenFileName = signal('');
   readonly tokenDocument = signal<ReturnType<typeof parseTokenFile> | null>(null);
   readonly tokenError = signal('');
+  readonly missingTokens = computed(() => {
+    const document = this.tokenDocument();
+    if (!document || (this.editing()?.status === 'Base' && document.tokens === this.editing()?.tokens)) return [];
+    return missingComponentTokens(document.tokens);
+  });
+  readonly missingAllTokens = computed(() => this.missingTokens().length === COMPONENT_COLOUR_TOKENS.length);
   readonly formError = signal('');
   readonly logos = signal<Record<AssetKey, string | null>>({ dark: null, light: null, thumbnail: null });
   readonly logoErrors = signal<Record<AssetKey, string>>({ dark: '', light: '', thumbnail: '' });
@@ -59,6 +68,7 @@ export class Projects {
         ? { name: project.name, customer: project.customer, description: project.description, figmaUrl: project.figmaUrl, modes: project.modes, platform: project.platform }
         : { name: '', customer: '', description: '', figmaUrl: '', modes: 'Light', platform: 'Desktop app' });
       this.tokenFileName.set(project?.tokenFileName ?? '');
+      this.iconLibraryId.set(project?.iconLibraryId ?? DEFAULT_ICON_LIBRARY);
       this.tokenDocument.set(project?.tokens ? { tokens: project.tokens, count: project.tokenCount } : null);
       this.tokenError.set('');
       this.formError.set('');
@@ -180,12 +190,13 @@ export class Projects {
     if (!name || name.length > 80) { this.formError.set('Enter a project name of 1 to 80 characters.'); return; }
     if (this.projects().some(project => project.id !== editing?.id && project.name.toLowerCase() === name.toLowerCase())) { this.formError.set('A project with this name already exists.'); return; }
     if (!document) { this.formError.set('Choose a valid token JSON file.'); return; }
+    if (!this.iconLibraries.some(library => library.id === this.iconLibraryId())) { this.formError.set('Choose an available icon library.'); return; }
     if (!validFigmaUrl(draft.figmaUrl)) { this.formError.set('Use an HTTPS Figma link, or leave the link empty.'); return; }
     if (this.logoErrors().dark || this.logoErrors().light || this.logoErrors().thumbnail) { this.formError.set('Remove or replace the invalid logo or thumbnail image.'); return; }
     if (this.imageError()) { this.formError.set('Remove or replace the invalid reference images.'); return; }
     this.formError.set('');
     const fields = { name, customer: draft.customer.trim(), description: draft.description.trim(), figmaUrl: draft.figmaUrl.trim(), logoDark: this.logos().dark, logoLight: this.logos().light, thumbnail: this.logos().thumbnail, modes: draft.modes, platform: draft.platform, images: this.images(), tokenFileName: this.tokenFileName(), tokens: document.tokens, tokenCount: document.count };
-    if (editing) this.save.emit({ ...editing, ...fields });
-    else this.create.emit({ id: crypto.randomUUID(), ...fields, createdAt: new Date().toISOString(), status: 'Draft' });
+    if (editing) this.save.emit({ ...editing, ...fields, iconLibraryId: this.iconLibraryId() });
+    else this.create.emit({ id: crypto.randomUUID(), ...fields, iconLibraryId: this.iconLibraryId(), createdAt: new Date().toISOString(), status: 'Draft' });
   }
 }

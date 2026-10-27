@@ -59,6 +59,26 @@
                 "glob": "primitive.json",
                 "input": "tokens",
                 "output": "tokens"
+              },
+              {
+                "glob": "{search,check,plus,arrow-left,heart,star}.svg",
+                "input": "node_modules/@tabler/icons/icons/outline",
+                "output": "icons/tabler"
+              },
+              {
+                "glob": "{search,check,plus,arrow-left,heart,star}.svg",
+                "input": "node_modules/bootstrap-icons/icons",
+                "output": "icons/bootstrap"
+              },
+              {
+                "glob": "LICENSE",
+                "input": "node_modules/@tabler/icons",
+                "output": "icons/tabler"
+              },
+              {
+                "glob": "LICENSE",
+                "input": "node_modules/bootstrap-icons",
+                "output": "icons/bootstrap"
               }
             ],
             "styles": ["projects/catalogue/src/styles.css"]

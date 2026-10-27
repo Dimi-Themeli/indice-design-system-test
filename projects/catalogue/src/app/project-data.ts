@@ -1,5 +1,6 @@
 import { DesignToken } from 'indice-tokens';
 import { IAM_TOKENS } from './iam-tokens';
+import { ICON_LIBRARIES } from './icon-library-data';
 
 export interface Project {
   id: string;
@@ -12,6 +13,7 @@ export interface Project {
   logoDark: string | null;
   logoLight: string | null;
   thumbnail?: string | null;
+  iconLibraryId?: string;
   images: string[];
   tokenFileName: string;
   tokens: Record<string, unknown> | null;
@@ -62,6 +64,17 @@ export function parseTokenFile(source: string): { tokens: Record<string, unknown
   return { tokens: parsed, count };
 }
 
+const FONT_WEIGHTS: Record<string, string> = {
+  thin: '100', extralight: '200', ultralight: '200', light: '300', regular: '400', normal: '400', book: '400',
+  medium: '500', semibold: '600', demibold: '600', bold: '700', extrabold: '800', ultrabold: '800', black: '900', heavy: '900'
+};
+
+function fontWeight(value: string | null): string | null {
+  if (!value) return null;
+  if (/^[1-9]00$/.test(value)) return value;
+  return FONT_WEIGHTS[value.toLowerCase().replace(/[\s_-]/g, '')] ?? null;
+}
+
 export function projectCssVariables(tokens: Record<string, unknown> | null): Record<string, string> {
   if (!tokens) return {};
   const values = new Map<string, unknown>();
@@ -87,6 +100,21 @@ export function projectCssVariables(tokens: Record<string, unknown> | null): Rec
     return path ? resolve(values.get(path), seen) : null;
   }
 
+  function resolveText(value: unknown, seen = new Set<string>()): string | null {
+    if (typeof value !== 'string' || !value.trim()) return null;
+    const reference = /^\{([^{}]+)\}$/.exec(value)?.[1];
+    if (!reference) return value.trim();
+    if (seen.has(reference)) return null;
+    seen.add(reference);
+    const path = [...values.keys()].find(key => key === reference || key.endsWith(`.${reference}`));
+    return path ? resolveText(values.get(path), seen) : null;
+  }
+
+  const fontFamily = (value: unknown) => {
+    const name = resolveText(value)?.replace(/["'\\;{}<>]/g, '').trim();
+    return name ? `'${name}'` : null;
+  };
+
   const variables: Record<string, string> = {};
   for (const [path, value] of values) {
     const primitivePrefix = 'Primitive/Indice.';
@@ -94,6 +122,20 @@ export function projectCssVariables(tokens: Record<string, unknown> | null): Rec
       const name = path.slice(primitivePrefix.length);
       const color = resolve(value);
       if (name.startsWith('colours.') && color) variables[`--indice-${name.replaceAll('.', '-')}`] = color;
+      const family = name.startsWith('fonts.family.') ? fontFamily(value) : null;
+      if (family) variables[`--indice-${name.replaceAll('.', '-')}`] = family;
+      continue;
+    }
+    const semanticFontPrefix = 'Semantic/Default - Light Mode.font.';
+    if (path.startsWith(semanticFontPrefix)) {
+      const name = path.slice(semanticFontPrefix.length);
+      if (name.startsWith('family.')) {
+        const family = fontFamily(value);
+        if (family) variables[`--font-${name.replaceAll('.', '-')}`] = family;
+      } else if (name.startsWith('weight.')) {
+        const weight = fontWeight(resolveText(value));
+        if (weight) variables[`--font-${name.replaceAll('.', '-')}`] = weight;
+      }
       continue;
     }
     const semanticPrefix = 'Semantic/Default - Light Mode.colours.';
@@ -103,10 +145,50 @@ export function projectCssVariables(tokens: Record<string, unknown> | null): Rec
       if (color) variables[`--colours-${name.replaceAll('.', '-')}`] = color;
     }
   }
+  addTokenSynonyms(variables);
   return variables;
 }
 
-const FONT_WEIGHTS: Record<string, number> = { Light: 300, Regular: 400, Medium: 500, Semibold: 600, Bold: 700, ExtraBold: 800 };
+// Figma files name the same role differently (e.g. border.element-primary-active vs -default), so each name also fills its equivalents.
+const TOKEN_SYNONYMS: [RegExp, (match: RegExpMatchArray) => string[]][] = [
+  [/^--colours-(.+)-default$/, m => [`--colours-${m[1]}-active`]],
+  [/^--colours-(.+)-active$/, m => [`--colours-${m[1]}-default`]],
+  [/^--colours-(text|border|icons|surface)-error$/, m => [`--colours-${m[1]}-element-error-default`]],
+  [/^--colours-(text|border|icons|surface)-element-error-default$/, m => [`--colours-${m[1]}-error`]],
+];
+
+function addTokenSynonyms(variables: Record<string, string>) {
+  for (const [name, value] of Object.entries(variables)) {
+    for (const [pattern, synonyms] of TOKEN_SYNONYMS) {
+      const match = name.match(pattern);
+      if (!match) continue;
+      for (const synonym of synonyms(match)) variables[synonym] ??= value;
+    }
+  }
+}
+
+export const COMPONENT_COLOUR_TOKENS = [
+  'text-element-primary-default', 'text-element-primary-hover', 'text-element-primary-pressed',
+  'icons-element-primary-default', 'icons-element-primary-hover', 'icons-element-primary-pressed',
+  'surface-element-primary-default', 'surface-element-primary-hover', 'surface-element-primary-pressed',
+  'border-element-primary-active', 'border-element-primary-hover', 'border-element-primary-pressed',
+  'text-element-secondary-default', 'text-element-secondary-hover', 'text-element-secondary-pressed',
+  'icons-element-secondary-default', 'icons-element-secondary-hover', 'icons-element-secondary-pressed',
+  'surface-element-secondary-default', 'surface-element-secondary-hover', 'surface-element-secondary-pressed',
+  'text-error', 'text-element-error-hover', 'text-element-error-pressed',
+  'icons-element-error-default', 'icons-element-error-hover', 'icons-element-error-pressed',
+  'border-error', 'border-element-error-hover', 'border-element-error-pressed',
+  'text-on-filled-button', 'text-on-filled-button-black', 'icons-on-filled-button', 'icons-on-filled-button-black',
+  'text-on-button-disabled', 'icons-disabled', 'surface-element-disabled-reverse', 'border-default',
+  'text-label', 'text-title', 'text-field-active', 'text-field-idle', 'text-white-only', 'icons-default',
+  'surface-field', 'surface-page', 'surface-card', 'border-grey-only',
+] as const;
+
+/** Semantic colour roles the components need that the token file does not define (after name equivalents). */
+export function missingComponentTokens(tokens: Record<string, unknown> | null): string[] {
+  const variables = projectCssVariables(tokens);
+  return COMPONENT_COLOUR_TOKENS.filter(name => !variables[`--colours-${name}`]).map(name => `colours.${name.replace('-', '.')}`);
+}
 
 export function projectTokenList(tokens: Record<string, unknown> | null): DesignToken[] {
   const collection = tokens?.['Primitive/Indice'];
@@ -119,7 +201,7 @@ export function projectTokenList(tokens: Record<string, unknown> | null): Design
       const type = String(node['$type'] ?? '');
       let cssValue = String(value);
       if (type === 'number') cssValue = `${value}px`;
-      if (segments[0] === 'fonts' && segments[1] === 'weight') cssValue = String(FONT_WEIGHTS[String(value)] ?? value);
+      if (segments[0] === 'fonts' && segments[1] === 'weight') cssValue = fontWeight(String(value)) ?? String(value);
       if (segments[0] === 'fonts' && segments[1] === 'family') cssValue = `"${value}"`;
       list.push({ name: segments.join('.'), variable: `--indice-${segments.join('-')}`, category: segments[0], group: segments.slice(0, -1).join('.'), label: segments.at(-1) ?? '', value, cssValue, type });
       return;
@@ -150,6 +232,7 @@ function isProject(value: unknown): value is Project {
     && (value['logoDark'] === undefined || value['logoDark'] === null || isUploadedImage(value['logoDark']))
     && (value['logoLight'] === undefined || value['logoLight'] === null || isUploadedImage(value['logoLight']))
     && (value['thumbnail'] === undefined || value['thumbnail'] === null || isUploadedImage(value['thumbnail']))
+    && (value['iconLibraryId'] === undefined || ICON_LIBRARIES.some(library => library.id === value['iconLibraryId']))
     && (value['logo'] === undefined || value['logo'] === null || isUploadedImage(value['logo']))
     && Array.isArray(value['images']) && value['images'].every(image => typeof image === 'string' && (/^data:image\/(png|jpeg|webp);base64,/.test(image) || /^assets\/theme-company-[a-d]\.png$/.test(image)))
     && typeof value['tokenCount'] === 'number' && Number.isSafeInteger(value['tokenCount']) && value['tokenCount'] >= 0

@@ -115,5 +115,6 @@ describe('IndiceButton', () => {
 
   it('exposes exactly the seven Figma combinations', () => {
     expect(BUTTON_VARIANTS.map(variant => variant.id)).toEqual(['primary-filled', 'secondary-outline', 'primary-clear', 'secondary-filled', 'secondary-clear', 'delete-clear', 'delete-outline']);
+    expect(BUTTON_VARIANTS[1]).toEqual({ id: 'secondary-outline', kind: 'primary', appearance: 'outline' });
   });
 });

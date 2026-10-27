@@ -23,6 +23,9 @@
       <label>Variant<select aria-label="Field variant" (change)="selectExample($any($event.target).value)"><option value="" disabled [selected]="!hasSelection()">Select variant</option>@for (example of examples; track example.id) { <option [value]="example.id" [selected]="selectedExample() === example.id">{{ example.kind }} / {{ example.state }} / {{ example.layout }}</option> }</select></label>
       <label>Label<input type="text" aria-label="Field label" maxlength="80" [value]="label()" (input)="label.set($any($event.target).value)" /></label>
       <label>Placeholder<input type="text" aria-label="Field placeholder" maxlength="80" [value]="placeholder()" (input)="placeholder.set($any($event.target).value)" /></label>
+      <app-icon-picker label="Field action icon" [library]="iconLibrary()" [(value)]="actionIconSource" [(enabled)]="showIcon" />
+      <app-icon-picker label="Information icon" [library]="iconLibrary()" [(value)]="infoIconSource" [(enabled)]="showInfo" />
+      <label>Icon action label<input type="text" aria-label="Icon action label" maxlength="80" [disabled]="!showIcon()" [value]="actionLabel()" (input)="actionLabel.set($any($event.target).value)" /></label>
       <label>Type<select aria-label="Field type" [value]="type()" (change)="setType($any($event.target).value)"><option value="text">Text</option><option value="email">Email</option><option value="password">Password</option><option value="tel">Telephone</option><option value="url">URL</option><option value="search">Search</option></select></label>
       <div class="layout-control"><span>Layout</span><div class="view-tabs" role="group" aria-label="Field layout"><button type="button" [attr.aria-pressed]="layout() === 'vertical'" [class.selected]="layout() === 'vertical'" (click)="setLayout('vertical')">Vertical</button><button type="button" [attr.aria-pressed]="layout() === 'horizontal'" [class.selected]="layout() === 'horizontal'" (click)="setLayout('horizontal')">Horizontal</button></div></div>
       <div class="toggle-controls">
@@ -30,13 +33,11 @@
         <label><input type="checkbox" [checked]="control.disabled" (change)="setDisabled($any($event.target).checked)" />Disabled</label>
         <label><input type="checkbox" [checked]="readOnly()" (change)="setReadOnly($any($event.target).checked)" />Read-only</label>
         <label><input type="checkbox" [checked]="showLabel()" (change)="showLabel.set($any($event.target).checked)" />Label</label>
-        <label><input type="checkbox" [checked]="showIcon()" (change)="showIcon.set($any($event.target).checked)" />Eye icon</label>
-        <label><input type="checkbox" [checked]="showInfo()" (change)="showInfo.set($any($event.target).checked)" />Information</label>
         <label><input type="checkbox" [checked]="showErrorMessage()" (change)="showErrorMessage.set($any($event.target).checked)" />Error message</label>
       </div>
     </div>
     <form (submit)="$event.preventDefault(); validate()" (reset)="$event.preventDefault(); reset()" novalidate>
-      <div class="live-preview"><indice-field [label]="label() || 'Field preview'" [placeholder]="placeholder()" [type]="type()" [layout]="layout()" [formControl]="control" [required]="required()" [readOnly]="readOnly()" [showLabel]="showLabel()" [showIcon]="showIcon()" [info]="showInfo() ? 'Field information' : ''" [invalid]="presetInvalid()" [error]="error()" [showErrorMessage]="showErrorMessage()" (iconClick)="actionCount.set(actionCount() + 1)" /></div>
+      <div class="live-preview"><indice-field [label]="label() || 'Field preview'" [placeholder]="placeholder()" [type]="type()" [layout]="layout()" [formControl]="control" [required]="required()" [readOnly]="readOnly()" [showLabel]="showLabel()" [showIcon]="showIcon()" [actionIcon]="actionIconSource()" [infoIcon]="infoIconSource()" [actionLabel]="actionLabel() || 'Field action'" [info]="showInfo() ? 'Field information' : ''" [invalid]="presetInvalid()" [error]="error()" [showErrorMessage]="showErrorMessage()" (iconClick)="actionCount.set(actionCount() + 1)" /></div>
       <div class="form-actions"><button type="submit">Validate</button><button type="reset" class="reset-control" aria-label="Reset field" title="Reset field"><app-icon name="reset" /></button><span role="status">{{ result() }}</span></div>
     </form>
     <div class="preview-meta"><span>{{ currentValue().length }} characters</span><span>{{ actionCount() }} icon actions</span></div>

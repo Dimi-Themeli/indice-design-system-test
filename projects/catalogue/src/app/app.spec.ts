@@ -8,10 +8,56 @@ import { SocialButtonCatalogue } from './social-buttons';
 import { FieldCatalogue } from './fields';
 import { UseIt } from './use-it';
 import { buildConfiguredUsage, buildUsageExample, parseUsageSettings, USAGE } from './usage-data';
-import { BASE_PROJECTS, exportDemoData, loadProjectState, mergeDemoProjects, parseDemoData, parseTokenFile, projectCssVariables, PROJECT_STORAGE_KEY, saveProjectState, validFigmaUrl } from './project-data';
+import { BASE_PROJECTS, exportDemoData, loadProjectState, mergeDemoProjects, missingComponentTokens, parseDemoData, parseTokenFile, projectCssVariables, PROJECT_STORAGE_KEY, saveProjectState, validFigmaUrl } from './project-data';
 import { Projects } from './projects';
+import { IconLibraries } from './icon-libraries';
 
 describe('App', () => {
+  it('counts project usage including legacy Lucide projects and opens each library', async () => {
+    const fixture = TestBed.createComponent(IconLibraries);
+    const projects = [
+      ...structuredClone(BASE_PROJECTS),
+      { ...structuredClone(BASE_PROJECTS[0]), id: 'tabler-project', status: 'Draft' as const, iconLibraryId: 'tabler' },
+      { ...structuredClone(BASE_PROJECTS[0]), id: 'bootstrap-project', status: 'Draft' as const, iconLibraryId: 'bootstrap' },
+    ];
+    fixture.componentRef.setInput('projects', projects);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelectorAll('.project-row').length).toBe(3);
+    expect(fixture.componentInstance.usageCounts().get('lucide')).toBe(1);
+    for (const [id, name] of [['tabler', 'Tabler Icons'], ['bootstrap', 'Bootstrap Icons']]) {
+      expect(fixture.componentInstance.usageCounts().get(id)).toBe(1);
+      (element.querySelector(`[aria-label="Open ${name}"]`) as HTMLButtonElement).click();
+      await fixture.whenStable();
+      expect(element.querySelector('h1')?.textContent).toBe(name);
+      expect(element.querySelectorAll('.icon-tile img').length).toBe(6);
+      expect(element.querySelector('.icon-tile img')?.getAttribute('src')).toBe(`icons/${id}/search.svg`);
+      (element.querySelector('.back-link') as HTMLButtonElement).click();
+      await fixture.whenStable();
+    }
+    fixture.componentRef.setInput('projects', []);
+    await fixture.whenStable();
+    expect([...element.querySelectorAll('.project-meta')].every(item => item.textContent?.includes('Used in 0 projects'))).toBe(true);
+    saveProjectState(projects, 'tabler-project');
+    expect(loadProjectState().projects.find(project => project.id === 'tabler-project')?.iconLibraryId).toBe('tabler');
+    expect(parseDemoData(JSON.parse(exportDemoData(projects, 'bootstrap-project'))).find(project => project.id === 'bootstrap-project')?.iconLibraryId).toBe('bootstrap');
+  });
+
+  it('orders Add and Edit sections and places the thumbnail and icon selector in the requested sections', async () => {
+    const fixture = TestBed.createComponent(Projects);
+    for (const page of ['create', 'edit'] as const) {
+      fixture.componentRef.setInput('page', page);
+      fixture.componentRef.setInput('editing', BASE_PROJECTS[0]);
+      await fixture.whenStable();
+      const element = fixture.nativeElement as HTMLElement;
+      const sections = [...element.querySelectorAll('.form-section')];
+      expect(sections.map(section => section.querySelector('h2')?.textContent?.trim())).toEqual(['Project details', 'Brand assets Optional', 'Design resources', 'Design references Optional']);
+      expect(sections[0].querySelector('.form-grid')?.lastElementChild?.querySelector('input')?.name).toBe('thumbnail');
+      expect(sections[1].querySelectorAll('input[type="file"]').length).toBe(2);
+      expect(sections[2].querySelector('input[name="tokens"]')).not.toBeNull();
+      expect(sections[2].querySelectorAll('select[name="iconLibrary"] option').length).toBe(3);
+    }
+  });
   beforeEach(async () => {
     localStorage.removeItem(PROJECT_STORAGE_KEY);
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
@@ -54,7 +100,8 @@ describe('App', () => {
       expect(fixture.componentInstance.activeProjectId()).toBe('iam');
       expect(dialog.close).toHaveBeenCalledOnce();
       expect(dialog.open).toBe(false);
-      expect((element.querySelector('.topbar-actions') as HTMLElement).style.display).toBe(role === 'designer' ? '' : 'none');
+      expect((element.querySelector('.topbar .add-project') as HTMLButtonElement).hidden).toBe(role !== 'designer');
+      expect(element.querySelector('.topbar a[download]')).not.toBeNull();
       const radio = element.querySelector(`input[name="demo-role"][value="${role}"]`) as HTMLInputElement;
       const focus = vi.spyOn(radio, 'focus');
       dialog.dispatchEvent(new Event('close'));
@@ -121,6 +168,26 @@ describe('App', () => {
       'Primitive/Indice': { colours: { main: { primary: { '600': { $value: '#e5861a' } } } } },
     });
     expect(otherProjectVariables['--indice-colours-main-primary-600']).toBe('#e5861a');
+    const fontVariables = projectCssVariables({
+      'Primitive/Indice': { fonts: { family: { manrope: { $value: 'Manrope' } }, weight: { light: { $value: 'Light' }, semibold: { $value: 'Semibold' } } } },
+      'Semantic/Default - Light Mode': {
+        font: { family: { body: { $value: '{fonts.family.manrope}' } }, weight: { '200': { $value: '{fonts.weight.light}' }, '800': { $value: '{fonts.weight.semibold}' } } },
+        colours: { icons: { 'element-primary-default': { $value: '#123456' } } },
+      },
+    });
+    expect(fontVariables['--indice-fonts-family-manrope']).toBe("'Manrope'");
+    expect(fontVariables['--font-family-body']).toBe("'Manrope'");
+    expect(fontVariables['--font-weight-200']).toBe('300');
+    expect(fontVariables['--font-weight-800']).toBe('600');
+    expect(fontVariables['--colours-icons-element-primary-default']).toBe('#123456');
+    const evpulseNaming = projectCssVariables({
+      'Primitive/Indice': { colours: { main: { primary: { '600': { $value: '#0089e8' } } } } },
+      'Semantic/Default - Light Mode': { colours: { border: { 'element-primary-default': { $value: '{colours.main.primary.600}' } }, text: { 'element-error-default': { $value: '#aa0000' } } } },
+    });
+    expect(evpulseNaming['--colours-border-element-primary-active']).toBe('#0089e8');
+    expect(evpulseNaming['--colours-text-error']).toBe('#aa0000');
+    expect(missingComponentTokens({ 'Semantic/Default - Light Mode': { colours: { border: { 'element-primary-default': { $value: '#0089e8' } } } } })).not.toContain('colours.border.element-primary-active');
+    expect(missingComponentTokens({ 'Primitive/Indice': {} })).toContain('colours.border.element-primary-active');
   });
 
   it('persists only uploaded projects, keeps IAM built in and reports corrupt or unavailable storage', () => {
@@ -195,7 +262,8 @@ describe('App', () => {
     await component.selectTokenFile({ name: 'tokens.json', size: 100, text: async () => '{"brand":{"$value":"#123456"}}' } as File);
     component.submit();
     expect(create).toHaveBeenCalledOnce();
-    expect(create.mock.calls[0][0]).toMatchObject({ name: 'Demo customer', customer: '', figmaUrl: '', images: [], tokenFileName: 'tokens.json', tokenCount: 1, status: 'Draft' });
+    expect(create.mock.calls[0][0]).toMatchObject({ name: 'Demo customer', customer: '', figmaUrl: '', images: [], tokenFileName: 'tokens.json', tokenCount: 1, status: 'Draft', iconLibraryId: 'lucide' });
+    expect((fixture.nativeElement as HTMLElement).querySelector('select[name="iconLibrary"]')).not.toBeNull();
     expect((fixture.nativeElement as HTMLElement).querySelectorAll('[required]').length).toBe(2);
     component.update('figmaUrl', 'https://not-figma.example');
     component.submit();
@@ -386,6 +454,7 @@ describe('App', () => {
     expect(element.querySelector('app-projects h1')?.textContent).toContain('Edit Novio');
     const form = fixture.debugElement.query(By.directive(Projects)).componentInstance as Projects;
     expect(form.draft().name).toBe('Novio');
+    expect(form.iconLibraryId()).toBe('lucide');
     expect(form.tokenFileName()).toBe('old.json');
     expect(form.logos().light).toBe(project.logoLight);
     expect((element.querySelector('input[name="projectName"]') as HTMLInputElement).value).toBe('Novio');
@@ -404,7 +473,7 @@ describe('App', () => {
     await form.selectTokenFile({ name: 'new.json', size: 20, text: async () => '{"color":"#222222","other":"#333333"}' } as File);
     form.submit();
     await fixture.whenStable();
-    expect(loadProjectState().projects.find(item => item.id === 'novio')).toMatchObject({ tokenFileName: 'new.json', tokenCount: 2, tokens: { color: '#222222' } });
+    expect(loadProjectState().projects.find(item => item.id === 'novio')).toMatchObject({ tokenFileName: 'new.json', tokenCount: 2, tokens: { color: '#222222' }, iconLibraryId: 'lucide' });
     app.editProject('iam');
     await fixture.whenStable();
     form.update('name', 'IAM edited');
@@ -540,13 +609,13 @@ describe('App', () => {
     const trigger = element.querySelector('.topbar .add-project') as HTMLButtonElement;
     const actions = element.querySelector('.topbar-actions') as HTMLElement;
     expect(trigger.disabled).toBe(true);
-    expect(actions.style.display).toBe('none');
+    expect(trigger.hidden).toBe(true);
     fixture.componentInstance.showProjects('create');
     expect(fixture.componentInstance.view()).toBe('library');
     (element.querySelector('.demo-ribbon input[value="designer"]') as HTMLInputElement).click();
     await fixture.whenStable();
     expect(trigger.disabled).toBe(false);
-    expect(actions.style.display).toBe('');
+    expect(trigger.hidden).toBe(false);
     trigger.click();
     await fixture.whenStable();
     expect(fixture.componentInstance.view()).toBe('create');
@@ -556,7 +625,7 @@ describe('App', () => {
     expect(element.querySelector('.project-dialog')).toBeNull();
     (element.querySelector('.demo-ribbon input[value="developer"]') as HTMLInputElement).click();
     await fixture.whenStable();
-    expect(actions.style.display).toBe('none');
+    expect(trigger.hidden).toBe(true);
     expect(trigger.disabled).toBe(true);
     expect(fixture.componentInstance.view()).toBe('manage');
     expect((element.querySelector('.demo-ribbon') as HTMLElement).hidden).toBe(false);
@@ -600,18 +669,40 @@ describe('App', () => {
     expect(dialog.close).toHaveBeenCalledOnce();
     expect(app.activeProjectId()).toBe('uploaded-two');
   });
-  it('offers the source JSON download only at the bottom of the sidebar without the progress status', async () => {
+  it('moves source JSON to the topbar and opens icon libraries from the sidebar for both roles', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
-    const link = element.querySelector('.sidebar-bottom .source-link') as HTMLAnchorElement;
+    const link = element.querySelector('.topbar .source-link') as HTMLAnchorElement;
     expect(link.textContent).toContain('Source JSON');
     expect(link.getAttribute('href')).toBe('tokens/primitive.json');
     expect(link.getAttribute('download')).toBe('indice-primitives.json');
-    expect(element.querySelector('.topbar a[download]')).toBeNull();
+    expect(link.previousElementSibling?.classList.contains('project-select')).toBe(true);
+    expect(element.querySelector('.sidebar-bottom a[download]')).toBeNull();
     expect(element.querySelectorAll('.source-link[download]').length).toBe(1);
     expect(element.querySelector('.sidebar-bottom')?.textContent).not.toContain('In progress');
     expect(element.querySelector('.status-dot')).toBeNull();
+    const navigation = element.querySelector('.sidebar-bottom button') as HTMLButtonElement;
+    expect(navigation.textContent).toContain('Icons libraries');
+    expect(navigation.classList.contains('chapter')).toBe(true);
+    expect(navigation.querySelector('app-icon')).not.toBeNull();
+    for (const role of ['developer', 'designer'] as const) {
+      fixture.componentInstance.setRole(role);
+      navigation.click();
+      await fixture.whenStable();
+      expect(element.querySelector('app-icon-libraries h1')?.textContent).toBe('Icons libraries');
+      (element.querySelector('[aria-label="Open Lucide"]') as HTMLButtonElement).click();
+      await fixture.whenStable();
+      expect(element.querySelector('app-icon-libraries h1')?.textContent).toBe('Lucide');
+      expect(element.querySelector('.icon-tile svg')).not.toBeNull();
+      const search = element.querySelector('[aria-label="Search icons"]') as HTMLInputElement;
+      search.value = 'no-such-icon';
+      search.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+      expect(element.querySelector('app-icon-libraries')?.textContent).toContain('No matching icons');
+      fixture.componentInstance.showProjects('library');
+      await fixture.whenStable();
+    }
   });
 
   it('renders the colour chapter from token data', async () => {

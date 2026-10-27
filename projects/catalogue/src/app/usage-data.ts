@@ -2,10 +2,10 @@ export type UsageComponent = 'button' | 'icon-button' | 'social-button' | 'field
 export interface UsageConfiguration { required?: boolean; readOnly?: boolean; disabled?: boolean; type?: string; initialValue?: string; }
 export type UsageSettings = Record<string, string | boolean | number | null>;
 export const USAGE_SETTINGS: Record<UsageComponent, UsageSettings> = {
-  button: { label: 'Button', variant: 'primary-filled', type: 'button', showLeftIcon: true, showRightIcon: true, disabled: false },
+  button: { label: 'Button', variant: 'primary-filled', type: 'button', showLeftIcon: true, showRightIcon: true, leftIcon: '', rightIcon: '', disabled: false },
   'icon-button': { label: 'Open administration', variant: 'black-filled', size: 'small', caption: 'Admin', type: 'button', disabled: false },
   'social-button': { provider: 'windows', type: 'button', disabled: false },
-  field: { label: 'Label text', layout: 'vertical', type: 'text', placeholder: 'Input field text default', initialValue: '', required: false, readOnly: false, disabled: false, showLabel: true, showIcon: true, info: '', invalid: false, error: '', showErrorMessage: true, actionLabel: 'View value', name: null, autocomplete: 'off', maxLength: null },
+  field: { label: 'Label text', layout: 'vertical', type: 'text', placeholder: 'Input field text default', initialValue: '', required: false, readOnly: false, disabled: false, showLabel: true, showIcon: true, actionIcon: '', infoIcon: '', info: '', invalid: false, error: '', showErrorMessage: true, actionLabel: 'View value', name: null, autocomplete: 'off', maxLength: null },
 };
 const SETTING_CHOICES: Partial<Record<UsageComponent, Record<string, string[]>>> = {
   button: { variant: ['primary-filled', 'secondary-outline', 'primary-clear', 'secondary-filled', 'secondary-clear', 'delete-clear', 'delete-outline'] },
@@ -24,11 +24,13 @@ export const USAGE: Record<UsageComponent, UsageDefinition> = {
       { name: 'disabled', type: 'boolean', default: 'false', description: 'Native disabled behavior.' },
       { name: 'showLeftIcon', type: 'boolean', default: 'true', description: 'Show the original leading circle-plus icon.' },
       { name: 'showRightIcon', type: 'boolean', default: 'true', description: 'Show the original trailing circle-plus icon.' },
+      { name: 'leftIcon', type: 'string', default: "''", description: 'Leading SVG URL or self-contained data URL. Empty uses the original icon.' },
+      { name: 'rightIcon', type: 'string', default: "''", description: 'Trailing SVG URL or self-contained data URL. Empty uses the original icon.' },
       { name: 'type', type: "'button' | 'submit' | 'reset'", default: 'button', description: 'Native button type; set submit explicitly in a form.' },
     ],
     outputs: [{ name: '(click)', type: 'MouseEvent', default: 'Native event', description: 'Bind an application action with (click). Not a custom Angular output.' }],
     accessibility: ['Use a meaningful visible action label. An icon must not be the only way to identify the action.', 'Native Tab, Enter and Space behavior is preserved. Disabled buttons do not activate.', 'Keyboard focus is visible. Do not remove the focus indicator in the consuming application.'],
-    notes: ['Button text uses Angular content projection. Both optional icons are the supplied circle-plus assets.', 'The black outline is named secondary-outline in Figma; teal is used for secondary-filled and secondary-clear.'],
+    notes: ['Button text uses Angular content projection. Icons default to circle-plus; custom SVG masks inherit project icon colours in every state.', 'Primary / Outline retains the secondary-outline API identifier for compatibility.'],
   },
   'icon-button': {
     title: 'Icon Button', symbol: 'IndiceIconButton', selector: 'button[indiceIconButton]',
@@ -70,6 +72,8 @@ export const USAGE: Record<UsageComponent, UsageDefinition> = {
       { name: 'showLabel', type: 'boolean', default: 'true', description: 'Hide the visual label while retaining an accessible name.' },
       { name: 'showIcon', type: 'boolean', default: 'true', description: 'Trailing eye action; omitted in horizontal view mode.' },
       { name: 'info', type: 'string', default: "''", description: 'Information icon, tooltip and associated input description.' },
+      { name: 'actionIcon', type: 'string', default: "''", description: 'Action SVG URL or self-contained data URL. Empty uses the original eye icon. Password visibility behaviour is preserved.' },
+      { name: 'infoIcon', type: 'string', default: "''", description: 'Information SVG URL or self-contained data URL. Empty uses the original information icon.' },
       { name: 'invalid', type: 'boolean', default: 'false', description: 'Error border and aria-invalid, without a required message.' },
       { name: 'error', type: 'string', default: "''", description: 'Error styling, message and linked accessible description.' },
       { name: 'showErrorMessage', type: 'boolean', default: 'true', description: 'Visibility of the error message.' },

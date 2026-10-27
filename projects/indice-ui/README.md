@@ -26,16 +26,22 @@ Load Geologica Regular in your global stylesheet (for example, `@fontsource/geol
 | `disabled` | `false` | Boolean; sets native disabled behavior |
 | `showLeftIcon` | `true` | Boolean; original circle-plus icon |
 | `showRightIcon` | `true` | Boolean; original circle-plus icon |
+| `leftIcon` | `''` | Custom leading SVG URL or data URL; empty keeps the original. Uses project icon colours. |
+| `rightIcon` | `''` | Custom trailing SVG URL or data URL; empty keeps the original. Uses project icon colours. |
 | `type` | `button` | `button`, `submit`, `reset` |
 
 `BUTTON_VARIANTS` and the `ButtonVariant` type are exported. Labels use Angular content projection. Use native `(click)`, `aria-label` and form behavior as usual.
+
+The catalogue's icon pickers embed selected SVGs as data URLs in copied code, so no additional icon files or packages are needed in the consuming app. Custom icons are CSS masks; their original fill/stroke colours do not override the project's icon colours.
+
+`IndiceField` also accepts `actionIcon` and `infoIcon` SVG URLs/data URLs, defaulting to `''` for the original eye and information assets. `showIcon` and `info` still control visibility. Set a meaningful `actionLabel` for custom non-password actions and handle `iconClick` in your app. Password fields retain their Show/Hide password labels and visibility toggle, even with a custom action icon. Custom field masks use the project's default icon colour and disabled colour.
 
 ## Source And Fidelity
 
 [Figma Fill Button, node 2038:786](https://www.figma.com/design/9kubN4VqWMZ6nLyb1RMhWM/INDICE-IAM-%7C-Design-System?node-id=2038-786)
 
 - Scope: Black / Light mode, seven variants and four states each. No other sizes or themes are inferred.
-- Figma names are preserved: `secondary-outline` is black, while `secondary-filled` and `secondary-clear` are teal.
+- The outlined primary button is labelled **Primary / Outline** in the catalogue and playground. Its existing `secondary-outline` API identifier is retained for compatibility; it uses primary colour roles. `secondary-filled` and `secondary-clear` use secondary colour roles.
 - Geologica Regular, 16px text, 24px line height, 8px/16px padding, 8px gap, 12px radius and 18px icons.
 - Height is 40px for a single line. Width remains content-sized; browser font metrics can differ fractionally from Figma's 138px example.
 - Figma active maps to default; inactive maps to native disabled. Hover and pressed use CSS pseudo-classes.

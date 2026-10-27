@@ -1,15 +1,20 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, effect, input, signal } from '@angular/core';
 import { BUTTON_VARIANTS, ButtonVariant, IndiceButton } from 'indice-ui';
 import { Icon } from './icon';
 import { UseIt } from './use-it';
+import { IconPicker } from './icon-picker';
+import { DEFAULT_ICON_LIBRARY } from './icon-library-data';
 
 @Component({
   selector: 'app-button-catalogue',
-  imports: [IndiceButton, Icon, UseIt],
+  imports: [IndiceButton, Icon, UseIt, IconPicker],
   templateUrl: './buttons.html',
   styleUrl: './buttons.css',
 })
 export class ButtonCatalogue {
+  readonly iconLibrary = input(DEFAULT_ICON_LIBRARY);
+  readonly leftIconSource = signal('');
+  readonly rightIconSource = signal('');
   readonly variants = BUTTON_VARIANTS;
   readonly states = ['active', 'hover', 'pressed', 'inactive'] as const;
   readonly view = signal<'states' | 'playground'>('states');
@@ -32,10 +37,20 @@ export class ButtonCatalogue {
       `variant="${this.variant()}"`,
       ...(!this.leftIcon() ? ['[showLeftIcon]="false"'] : []),
       ...(!this.rightIcon() ? ['[showRightIcon]="false"'] : []),
+      ...(this.leftIcon() && this.leftIconSource() ? [`leftIcon="${this.leftIconSource()}"`] : []),
+      ...(this.rightIcon() && this.rightIconSource() ? [`rightIcon="${this.rightIconSource()}"`] : []),
       ...(this.disabled() ? ['[disabled]="true"'] : []),
     ];
     return `<button indiceButton\n  ${options.join('\n  ')}\n>${label}</button>`;
   });
+
+  constructor() {
+    effect(() => {
+      this.iconLibrary();
+      this.leftIconSource.set('');
+      this.rightIconSource.set('');
+    });
+  }
 
   setVariant(value: string) {
     if (this.variants.some(variant => variant.id === value)) {

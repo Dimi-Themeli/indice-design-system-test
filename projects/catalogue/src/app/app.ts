@@ -6,6 +6,7 @@ import { IconButtonCatalogue } from './icon-buttons';
 import { SocialButtonCatalogue } from './social-buttons';
 import { FieldCatalogue } from './fields';
 import { Projects } from './projects';
+import { IconLibraries } from './icon-libraries';
 import { DEMO_DATA_URL, Project, exportDemoData, loadProjectState, mergeDemoProjects, parseDemoData, projectCssVariables, projectTokenList, saveProjectState } from './project-data';
 import { IAM_TOKENS } from './iam-tokens';
 
@@ -13,7 +14,7 @@ import { IAM_TOKENS } from './iam-tokens';
 const APP_THEME = projectCssVariables(IAM_TOKENS);
 
 @Component({
-  imports: [Icon, ButtonCatalogue, IconButtonCatalogue, SocialButtonCatalogue, FieldCatalogue, Projects],
+  imports: [Icon, ButtonCatalogue, IconButtonCatalogue, SocialButtonCatalogue, FieldCatalogue, Projects, IconLibraries],
   selector: 'app-root',
   styleUrls: ['./app.css', './sidebar.css', './theme-chooser.css', './project-wizard.css', './welcome.css'],
   templateUrl: './app.html',
@@ -45,7 +46,7 @@ export class App {
   readonly welcomeStep = signal<1 | 2>(1);
   readonly previewProjectId = signal<string | null>(this.savedProjects.activeId);
   readonly selectedProjectPreview = computed(() => this.projects().find(project => project.id === this.previewProjectId()) ?? null);
-  readonly view = signal<'library' | 'create' | 'edit' | 'manage'>('library');
+  readonly view = signal<'library' | 'create' | 'edit' | 'manage' | 'icon-libraries'>('library');
   readonly editingProjectId = signal<string | null>(null);
   readonly editingProject = computed(() => this.projects().find(project => project.id === this.editingProjectId()) ?? null);
   readonly projectError = signal(this.savedProjects.warning);
@@ -148,7 +149,7 @@ export class App {
     if (role === 'developer' && (this.view() === 'create' || this.view() === 'edit')) this.view.set('manage');
   }
 
-  showProjects(view: 'library' | 'create' | 'manage') {
+  showProjects(view: 'library' | 'create' | 'manage' | 'icon-libraries') {
     if (view === 'create' && this.role() !== 'designer') return;
     this.editingProjectId.set(null);
     this.view.set(view);
