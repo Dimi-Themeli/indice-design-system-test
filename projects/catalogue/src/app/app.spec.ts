@@ -25,9 +25,9 @@ describe('App', () => {
     expect(colours).toHaveLength(138);
     expect(projectTokenList(reordered).filter(token => token.category === 'colours')).toEqual(colours);
     expect([...new Set(colours.map(token => token.group))]).toEqual([
-      'colours.main.neutral', 'colours.main.accent', 'colours.main.secondary',
-      'colours.main.secondary.opacity', 'colours.main.global', 'colours.main.global.opacity',
-      'colours.main.primary', 'colours.main.primary.opacity', 'colours.functions.success',
+      'colours.main.global', 'colours.main.global.opacity', 'colours.main.primary',
+      'colours.main.primary.opacity', 'colours.main.secondary', 'colours.main.secondary.opacity',
+      'colours.main.neutral', 'colours.main.accent', 'colours.functions.success',
       'colours.functions.warning', 'colours.functions.info', 'colours.functions.magic', 'colours.functions.error',
     ]);
     expect(colours.filter(token => token.group === 'colours.main.primary').map(token => token.label)).toEqual([
@@ -77,9 +77,9 @@ describe('App', () => {
     }
     expect(palettes[1]).toEqual(palettes[0]);
     expect(app.groups().map(group => group.name)).toEqual([
-      'colours.main.neutral', 'colours.main.primary', 'colours.main.primary.opacity', 'colours.custom.brand',
+      'colours.main.primary', 'colours.main.primary.opacity', 'colours.main.neutral', 'colours.custom.brand',
     ]);
-    expect(app.groups()[2].tokens.map(token => token.label)).toEqual(['2', '10']);
+    expect(app.groups()[1].tokens.map(token => token.label)).toEqual(['2', '10']);
   });
 
   it('counts project usage including legacy Lucide projects and opens each library', async () => {
@@ -132,7 +132,9 @@ describe('App', () => {
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     const sharedProjects = {
       list: vi.fn().mockResolvedValue([]),
-      publish: vi.fn((project: Project) => Promise.resolve(project)),
+      publish: vi.fn((project: Project) => Promise.resolve(project.id === 'iam'
+        ? { ...project, source: 'shared' as const, status: 'Draft' as const }
+        : project)),
       update: vi.fn((project: Project) => Promise.resolve({ project, warning: null })),
       delete: vi.fn().mockResolvedValue(null),
     };
@@ -481,7 +483,7 @@ describe('App', () => {
     expect(form.logos().light).toBe(shared.logoLight);
     expect(form.images()).toEqual(shared.images);
     expect(form.tokenFileName()).toBe('old.json');
-    expect(fixture.nativeElement.querySelector('.draft-summary').textContent).toContain('Changes are public');
+    expect(fixture.nativeElement.querySelector('.draft-summary').textContent).toContain('Saving publishes');
     form.update('name', 'Updated project');
     await form.selectTokenFile({
       name: 'new.json', size: 100,
@@ -697,13 +699,83 @@ describe('App', () => {
     form.update('name', 'IAM edited');
     form.submit();
     await fixture.whenStable();
-    expect(loadProjectState().projects[0]).toMatchObject({ id: 'iam', name: 'IAM edited', status: 'Base' });
-    expect(element.querySelector('[aria-label="Delete IAM edited"]')).toBeNull();
+    expect(app.projects().find(project => project.id === 'iam')).toMatchObject({ id: 'iam', name: 'IAM edited', source: 'shared' });
+    expect(JSON.parse(localStorage.getItem(PROJECT_STORAGE_KEY)!).projects.some((project: Project) => project.id === 'iam')).toBe(false);
+    expect(element.querySelector('[aria-label="Delete IAM edited"]')).not.toBeNull();
     app.setRole('developer');
     await fixture.whenStable();
     expect(element.querySelector('[aria-label="Edit IAM edited"]')).toBeNull();
     app.editProject('novio');
     expect(app.view()).toBe('manage');
+  });
+
+  it('publishes IAM logos and thumbnail and loads them in a browser without local projects', async () => {
+    const readImage = vi.spyOn(FileReader.prototype, 'readAsDataURL').mockImplementation(function (this: FileReader) {
+      Object.defineProperty(this, 'result', { configurable: true, value: 'data:image/png;base64,AQID' });
+      this.onload?.call(this, new ProgressEvent('load') as ProgressEvent<FileReader>);
+    });
+    try {
+      const fixture = TestBed.createComponent(App);
+      await fixture.whenStable();
+      const app = fixture.componentInstance;
+      app.setRole('designer');
+      app.editProject('iam');
+      await fixture.whenStable();
+      const form = fixture.debugElement.query(By.directive(Projects)).componentInstance as Projects;
+      for (const asset of ['dark', 'light', 'thumbnail'] as const) {
+        form.clearLogo(asset);
+        await form.selectLogoFile(asset, { name: `${asset}.png`, type: 'image/png', size: 3 } as File);
+        await fixture.whenStable();
+      }
+      expect(form.logos()).toEqual({
+        dark: 'data:image/png;base64,AQID', light: 'data:image/png;base64,AQID', thumbnail: 'data:image/png;base64,AQID',
+      });
+      form.submit();
+      await fixture.whenStable();
+      expect(app.view()).toBe('manage');
+      const element = fixture.nativeElement as HTMLElement;
+      expect(element.querySelector('.project-thumbnail-bg')?.getAttribute('style')).toContain('data:image/png;base64,AQID');
+      expect(element.querySelector('.project-thumbnail-bg img')?.getAttribute('src')).toBe('data:image/png;base64,AQID');
+      const saved = app.projects().find(project => project.id === 'iam')!;
+      expect(saved).toMatchObject({
+        id: 'iam', logoDark: 'data:image/png;base64,AQID', logoLight: 'data:image/png;base64,AQID', thumbnail: 'data:image/png;base64,AQID',
+        source: 'shared',
+      });
+      expect(TestBed.inject(SupabaseProjects).publish).toHaveBeenCalledWith(expect.objectContaining({
+        id: 'iam', thumbnail: 'data:image/png;base64,AQID',
+      }));
+      localStorage.removeItem(PROJECT_STORAGE_KEY);
+      vi.spyOn(TestBed.inject(SupabaseProjects), 'list').mockResolvedValue([saved]);
+      const fresh = TestBed.createComponent(App);
+      await fresh.whenStable();
+      expect(fresh.componentInstance.projects().filter(project => project.id === 'iam')).toEqual([saved]);
+      fresh.componentInstance.applyDemoProjects([{ ...structuredClone(BASE_PROJECTS[0]), thumbnail: null }]);
+      expect(fresh.componentInstance.currentProject()?.thumbnail).toBe(saved.thumbnail);
+      fresh.componentInstance.setRole('designer');
+      fresh.componentInstance.editProject('iam');
+      await fresh.whenStable();
+      const next = { ...saved, description: 'Shared IAM edit' };
+      await fresh.componentInstance.saveProject(next);
+      expect(TestBed.inject(SupabaseProjects).update).toHaveBeenCalledWith(next);
+    } finally {
+      readImage.mockRestore();
+    }
+  });
+
+  it('keeps local IAM assets when first publication fails', async () => {
+    const iam = { ...structuredClone(BASE_PROJECTS[0]), thumbnail: 'data:image/png;base64,AQID', logoLight: 'data:image/png;base64,AQID' };
+    saveProjectState([iam], 'iam');
+    vi.spyOn(TestBed.inject(SupabaseProjects), 'publish').mockRejectedValue(new Error('Upload denied'));
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    app.setRole('designer');
+    app.editProject('iam');
+    await app.saveProject(iam);
+    expect(app.projectError()).toBe('Upload denied');
+    expect(app.view()).toBe('edit');
+    expect(app.currentProject()?.thumbnail).toBe(iam.thumbnail);
+    expect(loadProjectState().projects[0].thumbnail).toBe(iam.thumbnail);
   });
 
   it('starts a fresh project form when returning from management', async () => {

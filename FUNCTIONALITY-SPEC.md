@@ -15,9 +15,9 @@ The role permissions below still determine who can use each action.
 | Action | Built-in IAM | Local draft | Shared Supabase project |
 |---|---|---|---|
 | View/select | Both roles | Both roles, same browser | Both roles, all visitors |
-| Edit | Designer, browser-local changes | Designer, browser-local changes | Designer, saves publicly |
-| Publish | Not offered | Both roles | Already public; not offered |
-| Delete | Designer, with confirmation, browser-local removal | Designer, with confirmation | Both roles, with confirmation |
+| Edit | Designer, saves publicly | Designer, browser-local changes | Designer, saves publicly |
+| Publish | First Save publishes; later saves update | Both roles | Already public; not offered |
+| Delete | Both roles once shared; Designer for bundled fallback | Designer, with confirmation | Both roles, with confirmation |
 
 Both roles can create and publish a new project.
 
@@ -32,6 +32,13 @@ These permissions are intentionally unsuitable for production.
 - The same checks apply to every existing project and a newly added project;
   no project-specific implementation is required.
 - Edit pre-fills project details, token filename/data, icon library and images.
+- IAM's first successful Save publishes its existing local details, tokens and
+  images to Supabase. Subsequent saves update that public record. Existing local
+  assets are kept until publication succeeds; no automatic upload occurs on load.
+- Shared IAM replaces the bundled IAM in the project list, preserving the
+  catalogue identity `iam` and selection without duplicate rows. Supabase uses a
+  stable UUID internally. Bundled demo data must not override shared assets.
+- A fresh browser with the current app loads the shared IAM record and images.
 - Existing tokens can be retained; selecting a valid replacement updates the
   filename, token count, palette and component theme after saving.
 - Shared updates retain the project ID and creation timestamp, and are visible
@@ -62,7 +69,8 @@ These permissions are intentionally unsuitable for production.
 
 - The Colours page displays primitive colors under `Primitive/Indice`, not every
   color-valued semantic token. Metadata and placeholder `-` branches are excluded.
-- Group order is main neutral, accent, secondary, global, primary; then function
+- Group order for all existing and future projects is main global, primary,
+  secondary, neutral, accent; then function
   success, warning, info, magic, error. Opacity follows its parent palette.
 - Shades use numeric-aware ordering. Additional color groups remain visible in
   name order after known groups. JSON key ordering does not affect display.
@@ -94,9 +102,10 @@ These permissions are intentionally unsuitable for production.
 
 ## Verification
 
-Implementation gap as of this clarification: the app still protects IAM from
-deletion. The universal requirement above supersedes that earlier behavior;
-documenting it does not mean the implementation has already been updated.
+Remaining deletion gap: the app still protects the unpublished bundled IAM from
+deletion and restores that fallback if the shared IAM record is absent. Shared
+IAM itself has the usual public Delete action. Fully persistent removal of the
+bundled fallback is not implemented; the universal requirement still applies.
 
 Automated catalogue tests cover role/action visibility, edit/save routing,
 validation, persistence boundaries and deterministic palette ordering. Supabase
@@ -106,3 +115,8 @@ Run `npx ng test catalogue --watch=false` and `npx ng build catalogue`.
 After applying [Supabase setup](supabase/setup.sql), manually verify a disposable
 public project's edit, reload, token replacement and deletion across browsers.
 Do not use the real project for destructive acceptance checks.
+
+The GitHub Pages website must be redeployed with the current Supabase-enabled
+code before it can load shared projects. Editing data in Supabase does not update
+an older website build. The deployment workflow runs on pushes to GitHub `main`;
+a local commit or a push only to Azure DevOps does not deploy GitHub Pages.

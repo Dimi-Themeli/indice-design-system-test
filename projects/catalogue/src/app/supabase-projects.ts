@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ICON_LIBRARIES } from './icon-library-data';
-import { Project, PROJECT_MODES, PROJECT_PLATFORMS, validFigmaUrl } from './project-data';
+import { BASE_PROJECT_ID, Project, PROJECT_MODES, PROJECT_PLATFORMS, validFigmaUrl } from './project-data';
 import { SUPABASE_PROJECTS_BUCKET, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './supabase.config';
 
 interface ProjectInsert {
@@ -29,12 +29,18 @@ interface ProjectAssets {
   image_keys: string[];
 }
 
+// Keep the catalogue's built-in identity while using a stable UUID in Supabase.
+export const SHARED_IAM_ID = 'e38c83ab-7e6a-4f3b-8e46-03f63bcf44a1';
+function databaseId(id: string): string {
+  return id === BASE_PROJECT_ID ? SHARED_IAM_ID : id;
+}
+
 function projectRow(project: Project, assets: ProjectAssets): ProjectInsert {
   if (!project.tokens || !project.tokenFileName.trim() || !Number.isSafeInteger(project.tokenCount) || project.tokenCount < 1) {
     throw new Error('Choose a valid token JSON file containing at least one token value before saving.');
   }
   return {
-    id: project.id, name: project.name, customer: project.customer, description: project.description,
+    id: databaseId(project.id), name: project.name, customer: project.customer, description: project.description,
     modes: project.modes, platform: project.platform, figma_url: project.figmaUrl,
     ...assets, icon_library_id: project.iconLibraryId ?? 'lucide',
     token_file_name: project.tokenFileName, tokens: project.tokens, token_count: project.tokenCount,
@@ -80,11 +86,12 @@ export class SupabaseProjects {
       throw new Error('Choose a valid token JSON file containing at least one token value before publishing.');
     }
     const client = await this.getClient();
+    const id = databaseId(project.id);
     const [logoDarkKey, logoLightKey, thumbnailKey, imageKeys] = await Promise.all([
-      this.uploadAsset(client, project.id, 'logo-dark', project.logoDark),
-      this.uploadAsset(client, project.id, 'logo-light', project.logoLight),
-      this.uploadAsset(client, project.id, 'thumbnail', project.thumbnail ?? null),
-      Promise.all(project.images.map((image, index) => this.uploadAsset(client, project.id, `reference-${index + 1}`, image))),
+      this.uploadAsset(client, id, 'logo-dark', project.logoDark),
+      this.uploadAsset(client, id, 'logo-light', project.logoLight),
+      this.uploadAsset(client, id, 'thumbnail', project.thumbnail ?? null),
+      Promise.all(project.images.map((image, index) => this.uploadAsset(client, id, `reference-${index + 1}`, image))),
     ]);
 
     const row = projectRow(project, {
@@ -102,14 +109,15 @@ export class SupabaseProjects {
   async update(project: Project): Promise<{ project: Project; warning: string | null }> {
     projectRow(project, { logo_dark_key: null, logo_light_key: null, thumbnail_key: null, image_keys: [] });
     const client = await this.getClient();
-    const { data: existing, error: readError } = await client.from('projects').select('*').eq('id', project.id).single();
+    const id = databaseId(project.id);
+    const { data: existing, error: readError } = await client.from('projects').select('*').eq('id', id).single();
     if (readError) throw new Error(`The public project could not be loaded for editing: ${readError.message}`);
-    const original = this.mapProject(existing, client);
+    this.mapProject(existing, client);
     const record: unknown = existing;
     if (!isRecord(record) || !Array.isArray(record['image_keys'])) throw new Error('The public project has invalid image data.');
     const originalKeys = [
       record['logo_dark_key'], record['logo_light_key'], record['thumbnail_key'], ...record['image_keys'],
-    ].filter((key): key is string => isAssetKey(key, original.id));
+    ].filter((key): key is string => isAssetKey(key, id));
     const urls = new Map(originalKeys.map(key => [
       client.storage.from(SUPABASE_PROJECTS_BUCKET).getPublicUrl(key).data.publicUrl, key,
     ]));
@@ -118,7 +126,7 @@ export class SupabaseProjects {
       if (value === null) return null;
       const retained = urls.get(value);
       if (retained) return retained;
-      const key = await this.uploadAsset(client, original.id, label, value);
+      const key = await this.uploadAsset(client, id, label, value);
       if (key) uploaded.push(key);
       return key;
     };
@@ -164,12 +172,12 @@ export class SupabaseProjects {
     const { data: project, error: readError } = await client
       .from('projects')
       .select('logo_dark_key, logo_light_key, thumbnail_key, image_keys')
-      .eq('id', projectId)
+      .eq('id', databaseId(projectId))
       .single();
     if (readError) throw new Error(`The public project could not be loaded for deletion: ${readError.message}`);
     if (!project || !Array.isArray(project.image_keys)) throw new Error('The public project has invalid image data and could not be deleted.');
 
-    const { error: deleteError } = await client.from('projects').delete().eq('id', projectId);
+    const { error: deleteError } = await client.from('projects').delete().eq('id', databaseId(projectId));
     if (deleteError) throw new Error(`The public project could not be deleted: ${deleteError.message}`);
 
     const assets = project as ProjectAssets;
@@ -249,7 +257,7 @@ export class SupabaseProjects {
     const optionalPublicUrl = (key: string | null) => key ? publicUrl(key) : null;
 
     return {
-      id,
+      id: id === SHARED_IAM_ID ? BASE_PROJECT_ID : id,
       name: requiredString(value, 'name'),
       customer: requiredString(value, 'customer'),
       description: requiredString(value, 'description'),

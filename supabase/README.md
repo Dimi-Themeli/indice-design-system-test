@@ -32,5 +32,17 @@ superseded images only after the database confirms the update. A failed save kee
 the form open with an error; image-cleanup failures after a successful save are
 shown as warnings. Local drafts continue to save only in the current browser.
 
+IAM is initially bundled. Its first successful Save in Designer mode publishes
+the current details, tokens, logos and thumbnail to Supabase, including assets
+previously saved only in this browser. Later edits update the shared record.
+The stable database UUID is mapped to the catalogue's `iam` ID so other visitors
+see one IAM project, not a duplicate. Failed publication keeps the local version.
+No new SQL migration is required beyond the current setup script.
+
+For cross-browser verification, use the same up-to-date app. GitHub Pages must
+be deployed from the Supabase-enabled code; local changes or Azure-only pushes
+do not update it. After deployment, project data changes are shared without a
+new website build. Refresh an already-open page to load newly shared projects.
+
 See [the functionality spec](../FUNCTIONALITY-SPEC.md) for the agreed behavior and
 acceptance checks.

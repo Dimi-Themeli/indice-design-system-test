@@ -193,7 +193,7 @@ export function missingComponentTokens(tokens: Record<string, unknown> | null): 
 
 const COLOUR_GROUP_ORDER: Record<string, readonly string[]> = {
   colours: ['main', 'functions'],
-  'colours.main': ['neutral', 'accent', 'secondary', 'global', 'primary'],
+  'colours.main': ['global', 'primary', 'secondary', 'neutral', 'accent'],
   'colours.functions': ['success', 'warning', 'info', 'magic', 'error'],
 };
 const COLOUR_NAME_ORDER = new Intl.Collator('en', { numeric: true });
@@ -308,7 +308,9 @@ export function mergeDemoProjects(current: Project[], demo: Project[], storedIds
   for (const project of demo) {
     if (skip.has(project.id)) continue;
     const index = merged.findIndex(existing => existing.id === project.id);
-    if (index >= 0) merged[index] = { ...merged[index], ...project, status: merged[index].status };
+    if (index >= 0) {
+      if (merged[index].source !== 'shared') merged[index] = { ...merged[index], ...project, status: merged[index].status };
+    }
     else if (!merged.some(existing => existing.name.toLowerCase() === project.name.toLowerCase())) merged.push(project);
   }
   return merged;

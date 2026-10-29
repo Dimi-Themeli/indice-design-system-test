@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SupabaseProjects } from './supabase-projects';
+import { SHARED_IAM_ID, SupabaseProjects } from './supabase-projects';
 import { Project } from './project-data';
 import { SUPABASE_PROJECTS_BUCKET } from './supabase.config';
 
@@ -28,6 +28,7 @@ describe('Supabase shared editing', () => {
     return {
       select: vi.fn().mockReturnThis(),
       update: vi.fn().mockReturnThis(),
+      insert: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       single: vi.fn().mockResolvedValue({ data, error }),
     };
@@ -74,6 +75,46 @@ describe('Supabase shared editing', () => {
     expect(client.bucket.remove).not.toHaveBeenCalled();
     expect(result.project).toMatchObject({ id, source: 'shared', name: 'Updated Evpulse', createdAt: original.created_at });
     expect(result.warning).toBeNull();
+  });
+
+  it('publishes IAM using a stable database UUID and maps it back to the built-in identity', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(new Blob(['image'], { type: 'image/png' }))));
+    client.from.mockReset().mockReturnValue(updateQuery);
+    updateQuery.single.mockImplementation(async () => ({
+      data: { ...original, ...updateQuery.insert.mock.calls[0][0] }, error: null,
+    }));
+    const saved = await service.publish({
+      ...project, id: 'iam', name: 'IAM', logoLight: 'data:image/png;base64,AA==', images: [],
+    });
+    expect(updateQuery.insert).toHaveBeenCalledWith(expect.objectContaining({ id: SHARED_IAM_ID }));
+    const newKey = client.bucket.upload.mock.calls[0][0];
+    expect(newKey).toMatch(new RegExp(`^${SHARED_IAM_ID}/logo-light-`));
+    expect(saved).toMatchObject({ id: 'iam', name: 'IAM', source: 'shared', logoLight: publicUrl(newKey) });
+  });
+
+  it('updates shared IAM using the database UUID and retains its saved images', async () => {
+    const iamKey = key.replace(id, SHARED_IAM_ID);
+    const row = { ...original, id: SHARED_IAM_ID, name: 'IAM', logo_light_key: iamKey, image_keys: [] };
+    readQuery.single.mockResolvedValue({ data: row, error: null });
+    updateQuery.single.mockResolvedValue({ data: row, error: null });
+    const result = await service.update({ ...project, id: 'iam', logoLight: publicUrl(iamKey), images: [] });
+    expect(readQuery.eq).toHaveBeenCalledWith('id', SHARED_IAM_ID);
+    expect(updateQuery.eq).toHaveBeenCalledWith('id', SHARED_IAM_ID);
+    expect(updateQuery.update).toHaveBeenCalledWith(expect.objectContaining({ logo_light_key: iamKey }));
+    expect(client.bucket.upload).not.toHaveBeenCalled();
+    expect(result.project.id).toBe('iam');
+  });
+
+  it('loads published IAM with its public image URLs for a fresh visitor', async () => {
+    const iamKey = key.replace(id, SHARED_IAM_ID);
+    const row = { ...original, id: SHARED_IAM_ID, name: 'IAM', logo_light_key: iamKey, thumbnail_key: iamKey, image_keys: [] };
+    const listQuery = { select: vi.fn().mockReturnThis(), order: vi.fn().mockResolvedValue({ data: [row], error: null }) };
+    client.from.mockReset().mockReturnValue(listQuery);
+    const projects = await service.list();
+    expect(projects).toHaveLength(1);
+    expect(projects[0]).toMatchObject({
+      id: 'iam', source: 'shared', name: 'IAM', logoLight: publicUrl(iamKey), thumbnail: publicUrl(iamKey),
+    });
   });
 
   it('uploads replacement images and only removes old assets after a confirmed update', async () => {

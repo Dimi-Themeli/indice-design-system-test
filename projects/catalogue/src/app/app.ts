@@ -7,7 +7,7 @@ import { SocialButtonCatalogue } from './social-buttons';
 import { FieldCatalogue } from './fields';
 import { Projects } from './projects';
 import { IconLibraries } from './icon-libraries';
-import { DEMO_DATA_URL, Project, loadProjectState, mergeDemoProjects, parseDemoData, projectCssVariables, projectTokenList, saveProjectState } from './project-data';
+import { BASE_PROJECT_ID, DEMO_DATA_URL, Project, loadProjectState, mergeDemoProjects, parseDemoData, projectCssVariables, projectTokenList, saveProjectState } from './project-data';
 import { IAM_TOKENS } from './iam-tokens';
 import { SupabaseProjects } from './supabase-projects';
 
@@ -264,15 +264,18 @@ export class App {
       this.projectError.set('Use a unique project name and a valid token JSON file.');
       return;
     }
-    if (original.source === 'shared') {
+    if (original.source === 'shared' || original.id === BASE_PROJECT_ID) {
       this.projectSaving.set(true);
       this.projectError.set('');
       try {
-        const result = await this.sharedProjects.update(project);
+        const result = original.source === 'shared'
+          ? await this.sharedProjects.update(project)
+          : { project: await this.sharedProjects.publish(project), warning: null };
         if (result.project.source !== 'shared' || result.project.id !== original.id) {
           throw new Error('The saved project was not confirmed as the same public project.');
         }
         this.projects.update(projects => projects.map(existing => existing.id === original.id ? result.project : existing));
+        this.commitProjects(this.projects(), this.activeProjectId());
         this.cloudError.set('');
         this.showProjects('manage');
         if (result.warning) this.projectError.set(result.warning);
