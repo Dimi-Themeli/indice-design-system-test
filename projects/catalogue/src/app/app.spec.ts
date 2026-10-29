@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { HashLocationStrategy, Location, LocationStrategy, PlatformLocation } from '@angular/common';
+import { MockPlatformLocation } from '@angular/common/testing';
 import { App } from './app';
 import { vi } from 'vitest';
 import { ButtonCatalogue } from './buttons';
@@ -140,8 +142,109 @@ describe('App', () => {
     };
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [{ provide: SupabaseProjects, useValue: sharedProjects }],
+      providers: [
+        { provide: SupabaseProjects, useValue: sharedProjects },
+        { provide: PlatformLocation, useClass: MockPlatformLocation },
+        { provide: LocationStrategy, useClass: HashLocationStrategy },
+      ],
     }).compileComponents();
+  });
+
+  it('gives every demo page a hash URL and restores the current page on a new app instance', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    const location = TestBed.inject(Location);
+    const pages = [
+      ['colours', '/colours'], ['fonts', '/typography'], ['space', '/spacing'],
+      ['border', '/borders'], ['containers', '/containers'], ['buttons', '/components/buttons'],
+      ['icon-buttons', '/components/icon-buttons'], ['social-buttons', '/components/social-buttons'],
+      ['fields', '/components/fields'],
+    ];
+    for (const [category, path] of pages) {
+      app.select(category);
+      expect(location.path()).toBe(path);
+      const restored = TestBed.createComponent(App);
+      await restored.whenStable();
+      expect(restored.componentInstance.view()).toBe('library');
+      expect(restored.componentInstance.category()).toBe(category);
+      restored.destroy();
+    }
+    for (const [view, path] of [['manage', '/manage-projects'], ['create', '/add-project'], ['icon-libraries', '/icon-libraries']] as const) {
+      app.showProjects(view);
+      expect(location.path()).toBe(path);
+      const restored = TestBed.createComponent(App);
+      await restored.whenStable();
+      expect(restored.componentInstance.view()).toBe(view);
+      restored.destroy();
+    }
+    expect(TestBed.inject(PlatformLocation).hash).toBe('#/icon-libraries');
+  });
+
+  it('handles browser history and invalid links without reopening welcome or breaking skip links', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    const location = TestBed.inject(Location);
+    const platform = TestBed.inject(PlatformLocation);
+    app.showProjects('manage');
+    app.select('buttons');
+    platform.back();
+    await fixture.whenStable();
+    expect(app.view()).toBe('manage');
+    platform.forward();
+    await fixture.whenStable();
+    expect(app.category()).toBe('buttons');
+    const event = new Event('click', { cancelable: true });
+    const main = fixture.nativeElement.querySelector('main') as HTMLElement;
+    main.scrollIntoView = vi.fn();
+    fixture.nativeElement.querySelector('.skip-link').dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(location.path()).toBe('/components/buttons');
+    location.replaceState('/unknown-page');
+    const invalid = TestBed.createComponent(App);
+    await invalid.whenStable();
+    expect(location.path()).toBe('/colours');
+    expect(invalid.componentInstance.notice()).toContain('Page not found');
+    expect((invalid.nativeElement.querySelector('.welcome-dialog') as HTMLDialogElement).open).toBe(false);
+  });
+
+  it('restores shared-project edit links after asynchronous loading and guards the demo role', async () => {
+    const shared: Project = {
+      ...structuredClone(BASE_PROJECTS[0]), id: 'public-project', name: 'Public', source: 'shared', status: 'Draft',
+    };
+    let finish!: (projects: Project[]) => void;
+    vi.spyOn(TestBed.inject(SupabaseProjects), 'list').mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    TestBed.inject(Location).replaceState('/projects/public-project/edit');
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    expect(app.view()).toBe('edit');
+    expect(fixture.nativeElement.textContent).toContain('Switch to Designer');
+    app.setRole('designer');
+    await fixture.whenStable();
+    expect(fixture.nativeElement.textContent).toContain('Loading project...');
+    finish([shared]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(app.editingProject()).toEqual(shared);
+    expect(fixture.nativeElement.querySelector('app-projects h1').textContent).toBe('Edit Public');
+    expect(TestBed.inject(Location).path()).toBe('/projects/public-project/edit');
+    app.showProjects('manage');
+    app.editProject('iam');
+    expect(TestBed.inject(Location).path()).toBe('/projects/iam/edit');
+    app.setRole('developer');
+    expect(TestBed.inject(Location).path()).toBe('/manage-projects');
+  });
+
+  it('shows an explicit message for a missing edit project without opening an empty form', async () => {
+    TestBed.inject(Location).replaceState('/projects/missing/edit');
+    const fixture = TestBed.createComponent(App);
+    fixture.componentInstance.setRole('designer');
+    await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('app-projects')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('could not be found or loaded');
   });
 
   it('does not open the welcome automatically on startup', async () => {

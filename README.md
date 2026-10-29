@@ -115,6 +115,12 @@ The welcome modal does not open automatically during development. Its two-step
 flow is retained for restoration when the demo is ready. The app opens directly
 to the library; use the workspace role switch and project dropdown as usual.
 
+Demo pages have hash URLs, such as `#/manage-projects`, `#/add-project`,
+`#/colours` and `#/components/buttons`. Refresh and browser Back/Forward retain
+the current page, including on GitHub Pages. Edit pages use `#/projects/:id/edit`;
+after refresh, switch to Designer mode to edit. Unsaved form/playground values
+are not restored. See the functionality spec for the complete page list.
+
 See [the functionality specification](FUNCTIONALITY-SPEC.md) for the agreed
 project actions, demo permissions, upload rules and palette acceptance checks.
 Supabase projects can be edited in Designer mode and deleted in either role;

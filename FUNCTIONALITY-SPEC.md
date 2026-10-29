@@ -10,6 +10,26 @@ library directly using the saved project (or IAM by default); role and project
 controls remain available in the workspace. Keep the welcome flow intact and
 restore automatic opening only when requested for the demo.
 
+## Demo page URLs
+
+- Use hash-based page URLs so GitHub Pages supports direct visits and refreshes
+  without server-side rewrite rules.
+- Foundations: `#/colours`, `#/typography`, `#/spacing`, `#/borders`, `#/containers`.
+- Components: `#/components/buttons`, `#/components/icon-buttons`,
+  `#/components/social-buttons`, `#/components/fields`.
+- Projects: `#/manage-projects`, `#/add-project`, `#/projects/:id/edit`.
+- Icon libraries: `#/icon-libraries`.
+- Page navigation updates the URL. Refresh restores the page, and browser
+  Back/Forward restores previous pages. The project selection continues to use
+  existing persistence; the page URL does not select a project for library views.
+- Edit links wait for shared projects to load. Since demo roles reset to Developer
+  on refresh, an edit link asks the visitor to switch to Designer before showing
+  the form. Missing projects show an explicit message, not an empty edit form.
+- Refresh restores the page, not unsaved form entries or playground settings.
+- Empty URLs open Colours; unknown URLs open Colours with a notification.
+- Home and Skip to content must not navigate outside the hosted app or overwrite
+  the current page URL with a plain anchor.
+
 **Universal project-action requirement:** Edit and Delete must be supported for
 every existing project and every project added in the future, including IAM,
 Novio, Evpulse, bundled projects, local drafts and shared Supabase projects.

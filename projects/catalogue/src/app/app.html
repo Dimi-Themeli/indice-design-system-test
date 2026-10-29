@@ -1,4 +1,4 @@
-<a class="skip-link" href="#main">Skip to content</a>
+<a class="skip-link" href="#main" (click)="skipToContent($event)">Skip to content</a>
 <dialog #welcome class="welcome-dialog" aria-labelledby="welcome-title" aria-describedby="welcome-intro" (keydown.escape)="welcome.close()" (close)="role() === 'designer' ? designerRole.focus() : developerRole.focus()">
   <div class="welcome-brand"><img src="assets/INDICE-logo-text-only.svg" alt="Indice" width="160" height="32" /></div>
   <ol class="welcome-steps" aria-label="Setup steps"><li [class.current]="welcomeStep() === 1" [attr.aria-current]="welcomeStep() === 1 ? 'step' : null"><span>01</span>Role</li><li [class.current]="welcomeStep() === 2" [attr.aria-current]="welcomeStep() === 2 ? 'step' : null"><span>02</span>Project</li></ol>
@@ -22,7 +22,7 @@
 </dialog>
 <div class="demo-ribbon" aria-label="Demo workspace"><span class="ribbon-title">INDICE / DEMO</span><div class="role-switcher" role="group" aria-labelledby="demo-role-label"><span id="demo-role-label" class="role-label">Demo role</span><div class="role-options"><label class="role-choice"><input #designerRole type="radio" name="demo-role" value="designer" [checked]="role() === 'designer'" (change)="setRole('designer')" /><span>Designer</span></label><label class="role-choice"><input #developerRole type="radio" name="demo-role" value="developer" [checked]="role() === 'developer'" (change)="setRole('developer')" /><span>Developer</span></label></div></div></div>
 <aside #sidebar class="sidebar" [class.open]="menuOpen()" aria-label="Catalogue navigation">
-  <a class="brand" href="/" aria-label="Indice home"><img src="assets/INDICE-logo-text-only.svg" alt="Indice" width="160" height="32" /></a>
+  <a class="brand" href="#/colours" (click)="$event.preventDefault(); select('colours')" aria-label="Indice home"><img src="assets/INDICE-logo-text-only.svg" alt="Indice" width="160" height="32" /></a>
   <div class="sidebar-tools"><span>Library</span><button type="button" class="icon-button" aria-label="Collapse all categories" title="Collapse all categories" (click)="collapseAll(sidebar)"><app-icon name="collapse" /></button></div>
   <details class="nav-section" open>
   <summary class="chapter"><app-icon name="layers" /> Foundations <app-icon class="chapter-chevron" name="chevron" /></summary>
@@ -71,6 +71,16 @@
     @if (cloudError()) { <p class="cloud-error" role="alert">{{ cloudError() }}</p> }
     @if (view() === 'icon-libraries') {
       <app-icon-libraries [projects]="projects()" (back)="showProjects('library')" />
+    } @else if (view() === 'edit' && role() !== 'designer') {
+      <h1>Edit project</h1><p role="status">Switch to Designer mode to edit this project.</p>
+    } @else if (view() === 'edit' && !editingProject()) {
+      <h1>Edit project</h1>
+      @if (waitingForEditProject()) {
+        <p role="status">Loading project...</p>
+      } @else {
+        <p role="alert">This project could not be found or loaded. Check the project list and any shared-project error above.</p>
+        <button type="button" class="secondary-action" (click)="showProjects('manage')">Back to projects</button>
+      }
     } @else if (view() !== 'library') {
       <app-projects [page]="view() === 'create' ? 'create' : view() === 'edit' ? 'edit' : 'manage'" [projects]="projects()" [editing]="editingProject()" [activeId]="activeProjectId()" [canEdit]="role() === 'designer'" [canCreate]="true" [saving]="projectSaving()" [error]="projectError()" (create)="createProject($event)" (publish)="publishProject($event)" (save)="saveProject($event)" (edit)="editProject($event)" (open)="activateProject($event)" (remove)="requestProjectDeletion($event, deleteDialog)" (navigate)="showProjects($event)" />
     } @else {

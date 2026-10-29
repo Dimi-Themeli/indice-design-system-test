@@ -1,4 +1,5 @@
-import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { Location } from '@angular/common';
 import { TOKENS, DesignToken } from 'indice-tokens';
 import { Icon } from './icon';
 import { ButtonCatalogue } from './buttons';
@@ -13,6 +14,11 @@ import { SupabaseProjects } from './supabase-projects';
 
 // The workspace chrome always uses the IAM palette; project palettes only theme the component previews.
 const APP_THEME = projectCssVariables(IAM_TOKENS);
+const LIBRARY_PATHS: Record<string, string> = {
+  colours: '/colours', fonts: '/typography', space: '/spacing', border: '/borders', containers: '/containers',
+  buttons: '/components/buttons', 'icon-buttons': '/components/icon-buttons',
+  'social-buttons': '/components/social-buttons', fields: '/components/fields',
+};
 
 @Component({
   imports: [Icon, ButtonCatalogue, IconButtonCatalogue, SocialButtonCatalogue, FieldCatalogue, Projects, IconLibraries],
@@ -54,6 +60,10 @@ export class App {
   readonly cloudError = signal('');
   readonly projectSaving = signal(false);
   private readonly sharedProjects = inject(SupabaseProjects);
+  private readonly location = inject(Location);
+  private readonly destroyRef = inject(DestroyRef);
+  readonly loadingProjects = signal(true);
+  private readonly loadingDemoProjects = signal(true);
   readonly pendingDeletion = signal<Project | null>(null);
   private deleteTrigger: HTMLButtonElement | null = null;
   readonly menuOpen = signal(false);
@@ -80,8 +90,60 @@ export class App {
 
   constructor() {
     for (const [name, value] of Object.entries(APP_THEME)) document.documentElement.style.setProperty(name, value);
+    this.applyPath();
+    const navigation = this.location.subscribe(() => this.applyPath());
+    this.destroyRef.onDestroy(() => {
+      navigation.unsubscribe();
+      clearTimeout(this.noticeTimer);
+    });
     void this.loadDemoProjects();
     void this.loadSharedProjects();
+  }
+
+  private navigate(path: string) {
+    if (this.location.path() !== path) this.location.go(path);
+  }
+
+  private applyPath() {
+    const path = this.location.path();
+    const category = Object.keys(LIBRARY_PATHS).find(key => LIBRARY_PATHS[key] === path);
+    this.menuOpen.set(false);
+    this.query.set('');
+    this.editingProjectId.set(null);
+    if (category || !path || path === '/') {
+      this.category.set(category ?? 'colours');
+      this.view.set('library');
+      if (!category) this.location.replaceState('/colours');
+    } else if (path === '/manage-projects' || path === '/add-project' || path === '/icon-libraries') {
+      this.view.set(path === '/manage-projects' ? 'manage' : path === '/add-project' ? 'create' : 'icon-libraries');
+    } else {
+      const edit = /^\/projects\/([^/]+)\/edit$/.exec(path);
+      if (edit) {
+        try {
+          this.editingProjectId.set(decodeURIComponent(edit[1]));
+          this.view.set('edit');
+        } catch {
+          this.view.set('manage');
+          this.location.replaceState('/manage-projects');
+          this.projectError.set('The project link is invalid. Choose a project from the list.');
+        }
+      } else {
+        this.view.set('library');
+        this.category.set('colours');
+        this.location.replaceState('/colours');
+        this.showNotice('Page not found. Showing Colours.');
+      }
+    }
+    window.scrollTo({ top: 0 });
+  }
+
+  readonly waitingForEditProject = computed(() => this.loadingProjects() || this.loadingDemoProjects());
+
+  skipToContent(event: Event) {
+    event.preventDefault();
+    const main = document.getElementById('main');
+    main?.focus({ preventScroll: true });
+    main?.scrollIntoView();
   }
 
   async loadSharedProjects() {
@@ -102,6 +164,8 @@ export class App {
       this.cloudError.set('');
     } catch (error) {
       this.cloudError.set(error instanceof Error ? error.message : 'Shared projects could not be loaded.');
+    } finally {
+      this.loadingProjects.set(false);
     }
   }
 
@@ -111,6 +175,7 @@ export class App {
       if (!response.ok) return;
       this.applyDemoProjects(parseDemoData(await response.json()));
     } catch { /* The demo file is optional. */ }
+    finally { this.loadingDemoProjects.set(false); }
   }
 
   applyDemoProjects(demo: Project[]) {
@@ -160,12 +225,13 @@ export class App {
   setRole(role: 'designer' | 'developer') {
     this.role.set(role);
     this.menuOpen.set(false);
-    if (role === 'developer' && (this.view() === 'create' || this.view() === 'edit')) this.view.set('manage');
+    if (role === 'developer' && (this.view() === 'create' || this.view() === 'edit')) this.showProjects('manage');
   }
 
   showProjects(view: 'library' | 'create' | 'manage' | 'icon-libraries') {
     this.editingProjectId.set(null);
     this.view.set(view);
+    this.navigate(view === 'library' ? LIBRARY_PATHS[this.category()] : view === 'create' ? '/add-project' : view === 'manage' ? '/manage-projects' : '/icon-libraries');
     this.menuOpen.set(false);
     window.scrollTo({ top: 0 });
     document.getElementById('main')?.focus({ preventScroll: true });
@@ -243,6 +309,7 @@ export class App {
     if (this.role() !== 'designer' || this.projectSaving() || !this.projects().some(project => project.id === id)) return;
     this.editingProjectId.set(id);
     this.view.set('edit');
+    this.navigate(`/projects/${encodeURIComponent(id)}/edit`);
     this.menuOpen.set(false);
     window.scrollTo({ top: 0 });
     document.getElementById('main')?.focus({ preventScroll: true });
@@ -364,8 +431,14 @@ export class App {
   }
 
   select(category: string) {
+    if (!LIBRARY_PATHS[category]) {
+      this.showNotice('That catalogue page is not available.');
+      return;
+    }
     this.view.set('library');
+    this.editingProjectId.set(null);
     this.category.set(category);
+    this.navigate(LIBRARY_PATHS[category]);
     this.query.set('');
     this.menuOpen.set(false);
     window.scrollTo({ top: 0 });
