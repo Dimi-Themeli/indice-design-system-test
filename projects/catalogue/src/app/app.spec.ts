@@ -144,7 +144,17 @@ describe('App', () => {
     }).compileComponents();
   });
 
-  it('opens the welcome on each new app load and lets either role enter the demo', async () => {
+  it('does not open the welcome automatically on startup', async () => {
+    const show = vi.spyOn(App.prototype, 'openWelcome');
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    expect(show).not.toHaveBeenCalled();
+    expect((fixture.nativeElement.querySelector('.welcome-dialog') as HTMLDialogElement).open).toBe(false);
+    expect(fixture.componentInstance.view()).toBe('library');
+    show.mockRestore();
+  });
+
+  it('keeps the welcome flow available for restoration and lets either role enter the demo', async () => {
     for (const role of ['developer', 'designer'] as const) {
       const fixture = TestBed.createComponent(App);
       await fixture.whenStable();

@@ -5,6 +5,11 @@ related regression tests when changing these rules.
 
 ## Project actions and permissions
 
+The welcome modal is temporarily disabled on startup during development. Open the
+library directly using the saved project (or IAM by default); role and project
+controls remain available in the workspace. Keep the welcome flow intact and
+restore automatic opening only when requested for the demo.
+
 **Universal project-action requirement:** Edit and Delete must be supported for
 every existing project and every project added in the future, including IAM,
 Novio, Evpulse, bundled projects, local drafts and shared Supabase projects.

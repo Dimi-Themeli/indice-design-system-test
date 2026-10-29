@@ -1,4 +1,4 @@
-import { Component, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { TOKENS, DesignToken } from 'indice-tokens';
 import { Icon } from './icon';
 import { ButtonCatalogue } from './buttons';
@@ -80,7 +80,6 @@ export class App {
 
   constructor() {
     for (const [name, value] of Object.entries(APP_THEME)) document.documentElement.style.setProperty(name, value);
-    afterNextRender(() => this.openWelcome());
     void this.loadDemoProjects();
     void this.loadSharedProjects();
   }

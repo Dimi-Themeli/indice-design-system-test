@@ -111,6 +111,10 @@ Load Geologica 300 and 400 in the consuming app. See `projects/indice-ui/README.
 
 ## Demo Projects
 
+The welcome modal does not open automatically during development. Its two-step
+flow is retained for restoration when the demo is ready. The app opens directly
+to the library; use the workspace role switch and project dropdown as usual.
+
 See [the functionality specification](FUNCTIONALITY-SPEC.md) for the agreed
 project actions, demo permissions, upload rules and palette acceptance checks.
 Supabase projects can be edited in Designer mode and deleted in either role;
