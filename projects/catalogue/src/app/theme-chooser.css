@@ -16,8 +16,6 @@
 .theme-metadata { display: flex; flex-wrap: wrap; gap: 4px 6px; color: var(--muted); font-size: 12px; }
 .theme-status { margin-top: auto; color: var(--muted); font-size: 12px; }
 .theme-dialog .theme-dialog-actions { margin-top: 24px; padding: 16px 0 0; align-items: center; justify-content: space-between; }
-.theme-dialog-actions > span { min-width: 0; overflow-wrap: anywhere; font-size: 13px; color: var(--ink); }
-.theme-dialog-actions small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
 .theme-dialog-actions button { padding: 8px 16px; border: 1px solid var(--action); border-radius: 4px; background: var(--action); color: var(--surface); font-size: 14px; }
 .theme-dialog button:focus-visible, .theme-option input:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }.project-select { position: relative; display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
 .project-select select { appearance: none; min-width: 140px; max-width: 260px; margin: 0; padding: 6px 30px 6px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; text-overflow: ellipsis; cursor: pointer; }

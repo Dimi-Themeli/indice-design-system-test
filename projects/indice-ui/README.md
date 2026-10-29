@@ -47,7 +47,7 @@ The catalogue's icon pickers embed selected SVGs as data URLs in copied code, so
 - Figma active maps to default; inactive maps to native disabled. Hover and pressed use CSS pseudo-classes.
 - A keyboard-only focus ring is an accessibility addition, pending design approval; no focus state was supplied in Figma.
 - Exact Figma semantic CSS names override matching primitive fallbacks. This does not create or modify the canonical primitive-token export.
-- Twenty-four SVGs were downloaded unchanged through Figma MCP. They include separate left/right assets and the intentionally darker default delete icon colour.
+- One original 18px Figma SVG supplies the shared circle-plus mask. Colour-only duplicates were removed; semantic tokens provide each variant/state colour, including the intentionally darker default delete icon.
 - `data-preview-state` is an internal catalogue hook for deterministic state inspection, not an application input.
 
 ## Icon Buttons
@@ -85,7 +85,7 @@ The provided circle-plus icon is fixed to the exact Figma asset; no other glyphs
 - Filled xx-large variants use a 2px caption gap; enabled outline and grey-fill variants use 8px. Disabled variants use 2px.
 - Disabled outline buttons intentionally become filled grey with no outline, unlike the existing text buttons.
 - The xx-large pressed black outline intentionally retains the default border colour while its icon/text use the pressed colour.
-- Twenty-four original SVGs are bundled unchanged; they preserve their 14/16/20/32px root geometry.
+- Four original SVG masks preserve the distinct 14/16/20/32px root geometry. Colour-only duplicates were removed; semantic tokens supply the state colours.
 - Accessible action labels and native tooltips are mandatory through the required `label` input. The keyboard-only focus ring follows the existing button addition, pending design approval.
 - Long captions are truncated at two lines to preserve the designed square geometry; supply the full action in `label`.
 - Components > Icon Buttons has the searchable 64-state board and a live Angular playground.

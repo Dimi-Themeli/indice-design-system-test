@@ -2,15 +2,7 @@
   --icon-button-size: 32px;
   --icon-button-glyph-size: 14px;
   --icon-button-radius: var(--buttons-border-radius-small, var(--indice-border-radius-8, 8px));
-  --glyph-light: url('./icon-button-assets/d521c.svg');
-  --glyph-teal: url('./icon-button-assets/f6602.svg');
-  --glyph-dark-default: url('./icon-button-assets/6525d.svg');
-  --glyph-dark-hover: url('./icon-button-assets/03c29.svg');
-  --glyph-dark-pressed: url('./icon-button-assets/34908.svg');
-  --glyph-disabled: url('./icon-button-assets/07479.svg');
-  --icon-default: var(--glyph-light);
-  --icon-hover: var(--icon-default);
-  --icon-pressed: var(--icon-default);
+  --icon: url('./icon-button-assets/d521c.svg');
   --fill-default: var(--colours-surface-element-primary-default, var(--indice-colours-main-global-950, #000));
   --fill-hover: var(--colours-surface-element-primary-hover, var(--indice-colours-main-neutral-900, #201f1e));
   --fill-pressed: var(--colours-surface-element-primary-pressed, var(--indice-colours-main-neutral-950, #141312));
@@ -24,7 +16,6 @@
   --glyph-hover: var(--glyph-default);
   --glyph-pressed: var(--glyph-default);
   --glyph: var(--glyph-default);
-  --icon: var(--icon-default);
   --fill: var(--fill-default);
   --text: var(--text-default);
   --border: var(--border-default);
@@ -53,36 +44,21 @@
   --icon-button-size: 40px;
   --icon-button-glyph-size: 16px;
   --icon-button-radius: var(--buttons-border-radius-basic, var(--indice-border-radius-12, 12px));
-  --glyph-light: url('./icon-button-assets/bce40.svg');
-  --glyph-teal: url('./icon-button-assets/ebaa1.svg');
-  --glyph-dark-default: url('./icon-button-assets/d1479.svg');
-  --glyph-dark-hover: url('./icon-button-assets/f5d3b.svg');
-  --glyph-dark-pressed: url('./icon-button-assets/ca39d.svg');
-  --glyph-disabled: url('./icon-button-assets/eb7d2.svg');
+  --icon: url('./icon-button-assets/bce40.svg');
 }
 
 :host([data-size='large']) {
   --icon-button-size: 48px;
   --icon-button-glyph-size: 20px;
   --icon-button-radius: var(--buttons-border-radius-basic, var(--indice-border-radius-12, 12px));
-  --glyph-light: url('./icon-button-assets/618ca.svg');
-  --glyph-teal: url('./icon-button-assets/e7369.svg');
-  --glyph-dark-default: url('./icon-button-assets/c97a8.svg');
-  --glyph-dark-hover: url('./icon-button-assets/2eceb.svg');
-  --glyph-dark-pressed: url('./icon-button-assets/33e86.svg');
-  --glyph-disabled: url('./icon-button-assets/a871a.svg');
+  --icon: url('./icon-button-assets/618ca.svg');
 }
 
 :host([data-size='xx-large']) {
   --icon-button-size: 104px;
   --icon-button-glyph-size: 32px;
   --icon-button-radius: var(--buttons-border-radius-basic, var(--indice-border-radius-12, 12px));
-  --glyph-light: url('./icon-button-assets/bc805.svg');
-  --glyph-teal: url('./icon-button-assets/ed8f8.svg');
-  --glyph-dark-default: url('./icon-button-assets/4e9ef.svg');
-  --glyph-dark-hover: url('./icon-button-assets/59895.svg');
-  --glyph-dark-pressed: url('./icon-button-assets/6ea6b.svg');
-  --glyph-disabled: url('./icon-button-assets/845e2.svg');
+  --icon: url('./icon-button-assets/bc805.svg');
   flex-direction: column;
   gap: var(--indice-space-2, 2px);
 }
@@ -92,7 +68,6 @@
   --fill-hover: var(--colours-surface-element-secondary-hover, var(--indice-colours-main-secondary-600, #2b7f8d));
   --fill-pressed: var(--colours-surface-element-secondary-pressed, var(--indice-colours-main-secondary-800, #0f4a55));
   --text-default: var(--colours-text-white-only, var(--indice-colours-main-global-0, #fff));
-  --icon-default: var(--glyph-teal);
   --glyph-default: var(--colours-icons-on-filled-button, var(--indice-colours-main-global-0, #fff));
 }
 
@@ -103,9 +78,6 @@
   --text-default: var(--colours-text-field-active, var(--indice-colours-main-neutral-950, #141312));
   --text-hover: var(--colours-text-element-primary-hover, var(--indice-colours-main-neutral-600, #6f6d68));
   --text-pressed: var(--colours-text-element-primary-pressed, var(--indice-colours-main-neutral-950, #141312));
-  --icon-default: var(--glyph-dark-default);
-  --icon-hover: var(--glyph-dark-hover);
-  --icon-pressed: var(--glyph-dark-pressed);
   --glyph-default: var(--colours-icons-element-primary-default, var(--indice-colours-main-neutral-900, #201f1e));
   --glyph-hover: var(--colours-icons-element-primary-hover, var(--indice-colours-main-neutral-600, #6f6d68));
   --glyph-pressed: var(--colours-icons-element-primary-pressed, var(--indice-colours-main-neutral-950, #141312));
@@ -122,7 +94,6 @@
 :host([data-size='xx-large'][data-variant='black-outline']) { --border-pressed: var(--border-default); }
 
 :host(:not([data-preview-state]):hover:enabled), :host([data-preview-state='hover']:enabled) {
-  --icon: var(--icon-hover);
   --glyph: var(--glyph-hover);
   --fill: var(--fill-hover);
   --text: var(--text-hover);
@@ -130,7 +101,6 @@
 }
 
 :host(:not([data-preview-state]):active:enabled), :host([data-preview-state='pressed']:enabled) {
-  --icon: var(--icon-pressed);
   --glyph: var(--glyph-pressed);
   --fill: var(--fill-pressed);
   --text: var(--text-pressed);
@@ -138,7 +108,6 @@
 }
 
 :host(:disabled), :host([data-size='xx-large']:disabled) {
-  --icon: var(--glyph-disabled);
   --glyph: var(--colours-icons-disabled, var(--indice-colours-main-neutral-500, #8e8b85));
   --fill: var(--colours-surface-element-disabled-reverse, var(--indice-colours-main-neutral-100, #efeeea));
   --text: var(--colours-text-on-button-disabled, var(--indice-colours-main-neutral-500, #8e8b85));

@@ -20,8 +20,6 @@ nav button.active { color: var(--ink); background: var(--surface-selected); font
 .nav-number { font-size: 12px; opacity: .65; }
 .nav-count { margin-left: auto; font-size: 12px; font-weight: 500; }
 .sidebar-bottom { margin-top: auto; font-size: 12px; color: var(--muted); display: flex; flex-direction: column; align-items: stretch; gap: 12px; padding: 18px 10px 0; }
-.sidebar-bottom .source-link { min-height: 36px; }
-.sidebar-bottom .source-link span { display: inline; }
 .workspace { margin-left: 236px; }
 .topbar { min-height: var(--header-height); padding: 14px 44px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 20px; border-bottom: 1px solid var(--line); }
 .topbar-actions { display: flex; align-items: center; gap: 24px; margin-left: auto; }
