@@ -17,15 +17,17 @@ export class Projects {
   readonly projects = input<Project[]>([]);
   readonly editing = input<Project | null>(null);
   readonly canEdit = input(false);
+  readonly canCreate = input(true);
+  readonly saving = input(false);
   readonly activeId = input<string | null>(null);
   readonly error = input('');
   readonly create = output<Project>();
+  readonly publish = output<Project>();
   readonly save = output<Project>();
   readonly edit = output<string>();
   readonly open = output<string>();
   readonly remove = output<{ project: Project; trigger: HTMLButtonElement }>();
   readonly navigate = output<'create' | 'library' | 'manage'>();
-  readonly exportData = output<void>();
   readonly modes = PROJECT_MODES;
   readonly platforms = PROJECT_PLATFORMS;
   readonly iconLibraries = ICON_LIBRARIES;
@@ -181,7 +183,7 @@ export class Projects {
   }
 
   submit() {
-    if (!this.canEdit() || this.readingTokens() || this.readingAssets() || this.readingImages()) return;
+    if ((this.page() === 'edit' ? !this.canEdit() : !this.canCreate()) || this.readingTokens() || this.readingAssets() || this.readingImages() || this.saving()) return;
     const editing = this.page() === 'edit' ? this.editing() : null;
     if (this.page() === 'edit' && !editing) return;
     const draft = this.draft();
@@ -189,7 +191,7 @@ export class Projects {
     const document = this.tokenDocument();
     if (!name || name.length > 80) { this.formError.set('Enter a project name of 1 to 80 characters.'); return; }
     if (this.projects().some(project => project.id !== editing?.id && project.name.toLowerCase() === name.toLowerCase())) { this.formError.set('A project with this name already exists.'); return; }
-    if (!document) { this.formError.set('Choose a valid token JSON file.'); return; }
+    if (!document || !this.tokenFileName().trim() || document.count < 1) { this.formError.set('Choose a valid token JSON file containing at least one token value.'); return; }
     if (!this.iconLibraries.some(library => library.id === this.iconLibraryId())) { this.formError.set('Choose an available icon library.'); return; }
     if (!validFigmaUrl(draft.figmaUrl)) { this.formError.set('Use an HTTPS Figma link, or leave the link empty.'); return; }
     if (this.logoErrors().dark || this.logoErrors().light || this.logoErrors().thumbnail) { this.formError.set('Remove or replace the invalid logo or thumbnail image.'); return; }

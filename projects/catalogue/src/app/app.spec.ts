@@ -8,11 +8,80 @@ import { SocialButtonCatalogue } from './social-buttons';
 import { FieldCatalogue } from './fields';
 import { UseIt } from './use-it';
 import { buildConfiguredUsage, buildUsageExample, parseUsageSettings, USAGE } from './usage-data';
-import { BASE_PROJECTS, exportDemoData, loadProjectState, mergeDemoProjects, missingComponentTokens, parseDemoData, parseTokenFile, projectCssVariables, PROJECT_STORAGE_KEY, saveProjectState, validFigmaUrl } from './project-data';
+import { BASE_PROJECTS, loadProjectState, mergeDemoProjects, missingComponentTokens, parseDemoData, parseTokenFile, Project, projectCssVariables, projectTokenList, PROJECT_STORAGE_KEY, saveProjectState, validFigmaUrl } from './project-data';
 import { Projects } from './projects';
 import { IconLibraries } from './icon-libraries';
+import { SupabaseProjects } from './supabase-projects';
 
 describe('App', () => {
+  it('keeps all 138 IAM colours in canonical order regardless of JSON object ordering', () => {
+    function reorder(value: unknown): unknown {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+      return Object.fromEntries(Object.entries(value).reverse().map(([key, child]) => [key, reorder(child)]));
+    }
+    const original = BASE_PROJECTS[0].tokens!;
+    const reordered = Object.fromEntries(Object.entries(original).map(([key, value]) => [key, reorder(value)]));
+    const colours = projectTokenList(original).filter(token => token.category === 'colours');
+    expect(colours).toHaveLength(138);
+    expect(projectTokenList(reordered).filter(token => token.category === 'colours')).toEqual(colours);
+    expect([...new Set(colours.map(token => token.group))]).toEqual([
+      'colours.main.neutral', 'colours.main.accent', 'colours.main.secondary',
+      'colours.main.secondary.opacity', 'colours.main.global', 'colours.main.global.opacity',
+      'colours.main.primary', 'colours.main.primary.opacity', 'colours.functions.success',
+      'colours.functions.warning', 'colours.functions.info', 'colours.functions.magic', 'colours.functions.error',
+    ]);
+    expect(colours.filter(token => token.group === 'colours.main.primary').map(token => token.label)).toEqual([
+      '50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950',
+    ]);
+  });
+
+  it('renders local and shared palettes in the same order while preserving custom groups and project values', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    const token = (value: string) => ({ $value: value, $type: 'color' });
+    const local: Project = {
+      ...structuredClone(BASE_PROJECTS[0]), id: 'local', status: 'Draft',
+      tokens: { 'Primitive/Indice': { colours: {
+        custom: { brand: { '100': token('#abcdef') } },
+        main: {
+          primary: { opacity: { '10': token('#1234561a'), '2': token('#12345605') }, '950': token('#111111'), '50': token('#eeeeee') },
+          neutral: { '50': token('#fafafa') },
+        },
+      } } },
+    };
+    const shared: Project = {
+      ...local, id: 'shared', source: 'shared',
+      tokens: { 'Primitive/Indice': { colours: {
+        main: {
+          neutral: { '50': token('#fafafa') },
+          primary: { '50': token('#eeeeee'), '950': token('#0089e8'), opacity: { '2': token('#12345605'), '10': token('#1234561a') } },
+        },
+        custom: { brand: { '100': token('#abcdef') } },
+      } } },
+    };
+    app.projects.set([...app.projects(), local, shared]);
+    const element = fixture.nativeElement as HTMLElement;
+    const palettes = [];
+    for (const project of [local, shared]) {
+      app.activateProject(project.id);
+      await fixture.whenStable();
+      palettes.push([...element.querySelectorAll('.token-section')].map(section => ({
+        group: section.getAttribute('aria-label'),
+        tokens: [...section.querySelectorAll('.token')].map(token => token.getAttribute('aria-label')),
+      })));
+      expect(element.querySelectorAll('.swatch')).toHaveLength(6);
+      expect(element.querySelector('[aria-label="Copy colours.main.primary.950"]')?.textContent).toContain(
+        project === local ? '#111111' : '#0089e8',
+      );
+    }
+    expect(palettes[1]).toEqual(palettes[0]);
+    expect(app.groups().map(group => group.name)).toEqual([
+      'colours.main.neutral', 'colours.main.primary', 'colours.main.primary.opacity', 'colours.custom.brand',
+    ]);
+    expect(app.groups()[2].tokens.map(token => token.label)).toEqual(['2', '10']);
+  });
+
   it('counts project usage including legacy Lucide projects and opens each library', async () => {
     const fixture = TestBed.createComponent(IconLibraries);
     const projects = [
@@ -40,7 +109,7 @@ describe('App', () => {
     expect([...element.querySelectorAll('.project-meta')].every(item => item.textContent?.includes('Used in 0 projects'))).toBe(true);
     saveProjectState(projects, 'tabler-project');
     expect(loadProjectState().projects.find(project => project.id === 'tabler-project')?.iconLibraryId).toBe('tabler');
-    expect(parseDemoData(JSON.parse(exportDemoData(projects, 'bootstrap-project'))).find(project => project.id === 'bootstrap-project')?.iconLibraryId).toBe('bootstrap');
+    expect(parseDemoData({ version: 1, projects: [projects[2]] }).find(project => project.id === 'bootstrap-project')?.iconLibraryId).toBe('bootstrap');
   });
 
   it('orders Add and Edit sections and places the thumbnail and icon selector in the requested sections', async () => {
@@ -61,8 +130,15 @@ describe('App', () => {
   beforeEach(async () => {
     localStorage.removeItem(PROJECT_STORAGE_KEY);
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const sharedProjects = {
+      list: vi.fn().mockResolvedValue([]),
+      publish: vi.fn((project: Project) => Promise.resolve(project)),
+      update: vi.fn((project: Project) => Promise.resolve({ project, warning: null })),
+      delete: vi.fn().mockResolvedValue(null),
+    };
     await TestBed.configureTestingModule({
       imports: [App],
+      providers: [{ provide: SupabaseProjects, useValue: sharedProjects }],
     }).compileComponents();
   });
 
@@ -100,8 +176,9 @@ describe('App', () => {
       expect(fixture.componentInstance.activeProjectId()).toBe('iam');
       expect(dialog.close).toHaveBeenCalledOnce();
       expect(dialog.open).toBe(false);
-      expect((element.querySelector('.topbar .add-project') as HTMLButtonElement).hidden).toBe(role !== 'designer');
+      expect((element.querySelector('.topbar .add-project') as HTMLButtonElement).hidden).toBe(false);
       expect(element.querySelector('.topbar a[download]')).not.toBeNull();
+      expect(element.querySelector('.export-demo')).toBeNull();
       const radio = element.querySelector(`input[name="demo-role"][value="${role}"]`) as HTMLInputElement;
       const focus = vi.spyOn(radio, 'focus');
       dialog.dispatchEvent(new Event('close'));
@@ -218,13 +295,10 @@ describe('App', () => {
     expect(() => saveProjectState([], null, { setItem: () => { throw new Error('Quota'); } })).toThrow('could not be saved');
   });
 
-  it('exports demo data and merges the bundled demo projects for every visitor without overriding local changes', async () => {
+  it('merges bundled demo projects for every visitor without overriding local changes', async () => {
     const novio = { ...structuredClone(BASE_PROJECTS[0]), id: 'novio', name: 'Novio', status: 'Draft' as const, tokens: { color: '#005b97' }, logoDark: 'data:image/png;base64,AA==' };
     const iamWithLogo = { ...structuredClone(BASE_PROJECTS[0]), logoLight: 'data:image/png;base64,AQ==' };
-    const exported = JSON.parse(exportDemoData([iamWithLogo, novio], 'novio'));
-    expect(exported.projects.map((project: { id: string }) => project.id)).toEqual(['iam', 'novio']);
-    expect(exported.activeId).toBe('novio');
-    const demo = parseDemoData(exported);
+    const demo = parseDemoData({ version: 1, projects: [iamWithLogo, novio] });
     expect(parseDemoData({ version: 2, projects: [novio] })).toEqual([]);
     expect(mergeDemoProjects(structuredClone(BASE_PROJECTS), demo, [], []).map(project => [project.id, project.logoLight ?? project.logoDark])).toEqual([['iam', iamWithLogo.logoLight], ['novio', novio.logoDark]]);
     expect(mergeDemoProjects(structuredClone(BASE_PROJECTS), demo, ['novio'], []).map(project => project.id)).toEqual(['iam']);
@@ -257,8 +331,11 @@ describe('App', () => {
     component.update('name', 'Demo customer');
     component.submit();
     expect(component.formError()).toContain('token JSON');
+    expect((fixture.nativeElement as HTMLElement).querySelector('input[name="tokens"]')?.hasAttribute('required')).toBe(true);
     await component.selectTokenFile({ name: 'broken.json', size: 10, text: async () => '{' } as File);
     expect(component.tokenError()).toContain('not valid JSON');
+    component.submit();
+    expect(create).not.toHaveBeenCalled();
     await component.selectTokenFile({ name: 'tokens.json', size: 100, text: async () => '{"brand":{"$value":"#123456"}}' } as File);
     component.submit();
     expect(create).toHaveBeenCalledOnce();
@@ -319,7 +396,7 @@ describe('App', () => {
       logoLight: 'data:image/png;base64,AA==',
       images: [],
     };
-    component.createProject(project);
+    await component.createProject(project);
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('.topbar img')).toBeNull();
@@ -327,6 +404,147 @@ describe('App', () => {
     component.chooseRole('designer');
     fixture.detectChanges();
     expect(element.querySelector('.welcome-dialog .theme-option .theme-logo-preview')?.getAttribute('src')).toBe(project.logoLight);
+  });
+
+  it('loads public projects, allows Designer editing and permits deletion in either role', async () => {
+    const shared = { ...structuredClone(BASE_PROJECTS[0]), id: 'public-project', name: 'Public project', status: 'Draft' as const, source: 'shared' as const, tokens: { brand: '#000000' }, tokenFileName: 'tokens.json', images: [] };
+    vi.spyOn(TestBed.inject(SupabaseProjects), 'list').mockResolvedValue([shared]);
+    const deleteShared = vi.spyOn(TestBed.inject(SupabaseProjects), 'delete').mockResolvedValue(null);
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    expect(app.projects().some(project => project.id === shared.id)).toBe(true);
+    app.setRole('designer');
+    app.showProjects('manage');
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('[aria-label="Edit Public project"]')).not.toBeNull();
+    expect(element.querySelector('[aria-label="Delete Public project"]')).not.toBeNull();
+    app.editProject(shared.id);
+    expect(app.view()).toBe('edit');
+    app.showProjects('manage');
+    app.setRole('developer');
+    fixture.detectChanges();
+    expect(element.querySelector('[aria-label="Edit Public project"]')).toBeNull();
+    app.editProject(shared.id);
+    expect(app.view()).toBe('manage');
+    const dialog = element.querySelector('.delete-project-dialog') as HTMLDialogElement;
+    dialog.showModal = vi.fn();
+    dialog.close = vi.fn();
+    app.requestProjectDeletion({ project: shared, trigger: document.createElement('button') }, dialog);
+    expect(dialog.showModal).toHaveBeenCalledOnce();
+    await app.confirmProjectDeletion(dialog);
+    expect(deleteShared).toHaveBeenCalledWith(shared.id);
+    expect(app.projects().some(project => project.id === shared.id)).toBe(false);
+    expect(dialog.close).toHaveBeenCalledOnce();
+  });
+
+  it('lets an existing local draft be published and replaces it with the shared version', async () => {
+    const local = { ...structuredClone(BASE_PROJECTS[0]), id: 'local-draft', name: 'Local draft', status: 'Draft' as const, tokens: { brand: '#000000' }, tokenFileName: 'tokens.json', images: [] };
+    const shared = { ...local, source: 'shared' as const };
+    vi.spyOn(TestBed.inject(SupabaseProjects), 'publish').mockResolvedValue(shared);
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    app.setRole('designer');
+    app.projects.update(projects => [...projects, local]);
+    app.showProjects('manage');
+    fixture.detectChanges();
+
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[aria-label="Publish Local draft"]')!.click();
+    await fixture.whenStable();
+
+    expect(app.projects().find(project => project.id === local.id)?.source).toBe('shared');
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('[aria-label="Publish Local draft"]')).toBeNull();
+    expect(element.querySelector('[aria-label="Edit Local draft"]')).not.toBeNull();
+    expect(element.querySelector('[aria-label="Delete Local draft"]')).not.toBeNull();
+  });
+
+  it('saves shared edits publicly, preserves assets in the form and does not create local drafts', async () => {
+    const shared: Project = {
+      ...structuredClone(BASE_PROJECTS[0]), id: 'public-project', name: 'Public project',
+      status: 'Draft', source: 'shared', tokenFileName: 'old.json',
+      logoLight: 'https://example.test/logo.png', images: ['https://example.test/reference.png'],
+    };
+    vi.spyOn(TestBed.inject(SupabaseProjects), 'list').mockResolvedValue([shared]);
+    const update = vi.spyOn(TestBed.inject(SupabaseProjects), 'update');
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    app.setRole('designer');
+    app.activateProject(shared.id);
+    app.editProject(shared.id);
+    await fixture.whenStable();
+    const form = fixture.debugElement.query(By.directive(Projects)).componentInstance as Projects;
+    expect(form.logos().light).toBe(shared.logoLight);
+    expect(form.images()).toEqual(shared.images);
+    expect(form.tokenFileName()).toBe('old.json');
+    expect(fixture.nativeElement.querySelector('.draft-summary').textContent).toContain('Changes are public');
+    form.update('name', 'Updated project');
+    await form.selectTokenFile({
+      name: 'new.json', size: 100,
+      text: async () => '{"Primitive/Indice":{"colours":{"main":{"primary":{"600":{"$value":"#0089e8","$type":"color"}}}}}}',
+    } as File);
+    form.submit();
+    await fixture.whenStable();
+    expect(update).toHaveBeenCalledOnce();
+    expect(app.view()).toBe('manage');
+    expect(app.currentProject()).toMatchObject({
+      id: shared.id, source: 'shared', name: 'Updated project', tokenFileName: 'new.json',
+      tokenCount: 1, logoLight: shared.logoLight, images: shared.images,
+    });
+    expect(app.tokens().find(token => token.name === 'colours.main.primary.600')?.value).toBe('#0089e8');
+    expect(loadProjectState().projects.some(project => project.id === shared.id)).toBe(false);
+    const saved = app.currentProject()!;
+    vi.spyOn(TestBed.inject(SupabaseProjects), 'list').mockResolvedValue([saved]);
+    const reloaded = TestBed.createComponent(App);
+    await reloaded.whenStable();
+    expect(reloaded.componentInstance.currentProject()).toEqual(saved);
+  });
+
+  it('retains the shared edit form on save failure and guards Developer saves and duplicate requests', async () => {
+    const shared: Project = { ...structuredClone(BASE_PROJECTS[0]), id: 'public-project', name: 'Public project', source: 'shared', status: 'Draft' };
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    app.projects.update(projects => [...projects, shared]);
+    const update = vi.spyOn(TestBed.inject(SupabaseProjects), 'update').mockRejectedValue(new Error('Update permission denied'));
+    app.setRole('designer');
+    app.editProject(shared.id);
+    await fixture.whenStable();
+    const form = fixture.debugElement.query(By.directive(Projects)).componentInstance as Projects;
+    form.update('description', 'Keep my changes');
+    const changes = { ...shared, description: 'Keep my changes' };
+    form.submit();
+    await fixture.whenStable();
+    expect(app.view()).toBe('edit');
+    expect(app.projectError()).toBe('Update permission denied');
+    expect(form.draft().description).toBe('Keep my changes');
+    expect(app.projectSaving()).toBe(false);
+    expect(app.projects().find(project => project.id === shared.id)?.description).toBe(shared.description);
+    app.projectSaving.set(true);
+    await app.saveProject(changes);
+    expect(update).toHaveBeenCalledOnce();
+    await form.selectTokenFile({ name: 'invalid.json', size: 10, text: async () => '{' } as File);
+    form.submit();
+    expect(form.formError()).toContain('valid token JSON');
+    expect(update).toHaveBeenCalledOnce();
+    app.projectSaving.set(false);
+    app.setRole('developer');
+    await app.saveProject(changes);
+    expect(update).toHaveBeenCalledOnce();
+    app.setRole('designer');
+    app.editProject(shared.id);
+    await app.saveProject({ ...changes, tokens: null });
+    expect(app.projectError()).toContain('valid token JSON');
+    expect(update).toHaveBeenCalledOnce();
+    update.mockResolvedValue({ project: changes, warning: 'Saved, but old images could not be removed' });
+    await app.saveProject(changes);
+    expect(app.view()).toBe('manage');
+    expect(app.projectError()).toContain('old images could not be removed');
+    expect(app.projects().find(project => project.id === shared.id)?.description).toBe(changes.description);
   });
 
   it('applies the selected project palette to the shared component library and removes it on project switch', async () => {
@@ -347,7 +565,7 @@ describe('App', () => {
       tokenCount: 1,
       images: [],
     };
-    app.createProject(project);
+    await app.createProject(project);
     await fixture.whenStable();
     const main = (fixture.nativeElement as HTMLElement).querySelector('main') as HTMLElement;
     const root = document.documentElement;
@@ -367,7 +585,7 @@ describe('App', () => {
     await fixture.whenStable();
     const app = fixture.componentInstance;
     app.setRole('designer');
-    app.createProject({
+    await app.createProject({
       ...structuredClone(BASE_PROJECTS[0]),
       id: 'novio', name: 'Novio', status: 'Draft' as const, tokenFileName: 'novio.json', tokenCount: 2, images: [],
       tokens: { 'Primitive/Indice': { colours: { main: { primary: { '600': { $value: '#005b97', $type: 'color' } } } }, space: { '8': { $value: 8, $type: 'number' } } } },
@@ -409,7 +627,7 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
     app.setRole('designer');
-    app.createProject({ ...structuredClone(BASE_PROJECTS[0]), id: 'thumb', name: 'Thumb', status: 'Draft' as const, tokens: { brand: '#000000' }, tokenFileName: 'tokens.json', tokenCount: 1, images: [], logoLight: 'data:image/png;base64,AA==', logoDark: 'data:image/png;base64,Ag==', thumbnail: 'data:image/png;base64,AQ==' });
+    await app.createProject({ ...structuredClone(BASE_PROJECTS[0]), id: 'thumb', name: 'Thumb', status: 'Draft' as const, tokens: { brand: '#000000' }, tokenFileName: 'tokens.json', tokenCount: 1, images: [], logoLight: 'data:image/png;base64,AA==', logoDark: 'data:image/png;base64,Ag==', thumbnail: 'data:image/png;base64,AQ==' });
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
     expect((element.querySelector('.project-thumbnail-bg') as HTMLElement).style.backgroundImage).toContain('data:image/png;base64,AQ==');
@@ -420,7 +638,7 @@ describe('App', () => {
     expect((element.querySelector('.theme-thumbnail-preview') as HTMLElement).style.backgroundImage).toContain('data:image/png;base64,AQ==');
     expect(element.querySelector('.theme-thumbnail-preview img')?.getAttribute('src')).toBe('data:image/png;base64,Ag==');
   });
-  it('ignores stale token file reads and prevents creation for read-only users', async () => {
+  it('ignores stale token file reads and allows anonymous project submissions', async () => {
     const fixture = TestBed.createComponent(Projects);
     await fixture.whenStable();
     const component = fixture.componentInstance;
@@ -435,7 +653,7 @@ describe('App', () => {
     expect(component.tokenDocument()?.count).toBe(1);
     component.update('name', 'Read-only');
     component.submit();
-    expect(create).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledOnce();
   });
 
   it('edits a project from Manage projects, keeping its tokens unless a replacement JSON is chosen', async () => {
@@ -444,7 +662,7 @@ describe('App', () => {
     app.setRole('designer');
     await fixture.whenStable();
     const project = { ...structuredClone(BASE_PROJECTS[0]), id: 'novio', name: 'Novio', status: 'Draft' as const, tokens: { color: '#111111' }, tokenFileName: 'old.json', tokenCount: 1, logoLight: 'data:image/png;base64,AA==', images: [] };
-    app.createProject(project);
+    await app.createProject(project);
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
     (element.querySelector('[aria-label="Edit Novio"]') as HTMLButtonElement).click();
@@ -508,7 +726,7 @@ describe('App', () => {
     component.setRole('designer');
     await fixture.whenStable();
     const project = { ...structuredClone(BASE_PROJECTS[0]), id: 'new-project', name: 'New project', status: 'Draft' as const, tokens: { primary: '#000000' }, tokenFileName: 'tokens.json', tokenCount: 1, images: [] };
-    component.createProject(project);
+    await component.createProject(project);
     await fixture.whenStable();
     expect(component.view()).toBe('manage');
     expect(component.currentProject()?.id).toBe(project.id);
@@ -541,19 +759,19 @@ describe('App', () => {
     expect(loadProjectState().projects.map(saved => saved.id)).toEqual(['iam']);
   });
 
-  it('keeps projects intact on storage failure and rejects developer mutations', async () => {
+  it('keeps projects intact on storage failure and allows anonymous submissions', async () => {
     const fixture = TestBed.createComponent(App);
     const component = fixture.componentInstance;
     const project = { ...structuredClone(BASE_PROJECTS[0]), id: 'new-project', name: 'New project', tokens: { color: '#000000' } };
-    component.createProject(project);
-    expect(component.projects().length).toBe(1);
+    await component.createProject(project);
+    expect(component.projects().length).toBe(2);
     component.setRole('designer');
     const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Quota'); });
     try {
-      component.createProject(project);
-      expect(component.projects().length).toBe(1);
+      await component.createProject({ ...project, id: 'second-project', name: 'Second project' });
+      expect(component.projects().length).toBe(2);
       expect(component.projectError()).toContain('could not be saved');
-      expect(component.activeProjectId()).toBe('iam');
+      expect(component.activeProjectId()).toBe(project.id);
     } finally { write.mockRestore(); }
     component.setRole('developer');
     const dialog = document.createElement('dialog');
@@ -599,7 +817,7 @@ describe('App', () => {
     expect(element.getAttribute('data-role')).toBe('developer');
   });
 
-  it('hides project editing for Developer and opens the creation page for Designer', async () => {
+  it('allows everyone to browse and submit projects while keeping local project editing Designer-only', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
@@ -608,14 +826,10 @@ describe('App', () => {
     expect(element.querySelector('.topbar .role-switcher')).toBeNull();
     const trigger = element.querySelector('.topbar .add-project') as HTMLButtonElement;
     const actions = element.querySelector('.topbar-actions') as HTMLElement;
-    expect(trigger.disabled).toBe(true);
-    expect(trigger.hidden).toBe(true);
-    fixture.componentInstance.showProjects('create');
-    expect(fixture.componentInstance.view()).toBe('library');
-    (element.querySelector('.demo-ribbon input[value="designer"]') as HTMLInputElement).click();
-    await fixture.whenStable();
     expect(trigger.disabled).toBe(false);
     expect(trigger.hidden).toBe(false);
+    fixture.componentInstance.showProjects('create');
+    expect(fixture.componentInstance.view()).toBe('create');
     trigger.click();
     await fixture.whenStable();
     expect(fixture.componentInstance.view()).toBe('create');
@@ -623,10 +837,12 @@ describe('App', () => {
     expect((element.querySelector('.topbar') as HTMLElement).hidden).toBe(true);
     expect(element.querySelector('app-projects h1')?.textContent).toBe('Add project');
     expect(element.querySelector('.project-dialog')).toBeNull();
+    (element.querySelector('.demo-ribbon input[value="designer"]') as HTMLInputElement).click();
+    await fixture.whenStable();
     (element.querySelector('.demo-ribbon input[value="developer"]') as HTMLInputElement).click();
     await fixture.whenStable();
-    expect(trigger.hidden).toBe(true);
-    expect(trigger.disabled).toBe(true);
+    expect(trigger.hidden).toBe(false);
+    expect(trigger.disabled).toBe(false);
     expect(fixture.componentInstance.view()).toBe('manage');
     expect((element.querySelector('.demo-ribbon') as HTMLElement).hidden).toBe(false);
     expect((element.querySelector('.topbar') as HTMLElement).hidden).toBe(false);

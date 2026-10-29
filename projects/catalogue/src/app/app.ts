@@ -1,4 +1,4 @@
-import { Component, ElementRef, afterNextRender, computed, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { TOKENS, DesignToken } from 'indice-tokens';
 import { Icon } from './icon';
 import { ButtonCatalogue } from './buttons';
@@ -7,8 +7,9 @@ import { SocialButtonCatalogue } from './social-buttons';
 import { FieldCatalogue } from './fields';
 import { Projects } from './projects';
 import { IconLibraries } from './icon-libraries';
-import { DEMO_DATA_URL, Project, exportDemoData, loadProjectState, mergeDemoProjects, parseDemoData, projectCssVariables, projectTokenList, saveProjectState } from './project-data';
+import { DEMO_DATA_URL, Project, loadProjectState, mergeDemoProjects, parseDemoData, projectCssVariables, projectTokenList, saveProjectState } from './project-data';
 import { IAM_TOKENS } from './iam-tokens';
+import { SupabaseProjects } from './supabase-projects';
 
 // The workspace chrome always uses the IAM palette; project palettes only theme the component previews.
 const APP_THEME = projectCssVariables(IAM_TOKENS);
@@ -50,6 +51,9 @@ export class App {
   readonly editingProjectId = signal<string | null>(null);
   readonly editingProject = computed(() => this.projects().find(project => project.id === this.editingProjectId()) ?? null);
   readonly projectError = signal(this.savedProjects.warning);
+  readonly cloudError = signal('');
+  readonly projectSaving = signal(false);
+  private readonly sharedProjects = inject(SupabaseProjects);
   readonly pendingDeletion = signal<Project | null>(null);
   private deleteTrigger: HTMLButtonElement | null = null;
   readonly menuOpen = signal(false);
@@ -78,6 +82,28 @@ export class App {
     for (const [name, value] of Object.entries(APP_THEME)) document.documentElement.style.setProperty(name, value);
     afterNextRender(() => this.openWelcome());
     void this.loadDemoProjects();
+    void this.loadSharedProjects();
+  }
+
+  async loadSharedProjects() {
+    try {
+      const shared = await this.sharedProjects.list();
+      const projects = this.projects().filter(project => project.source !== 'shared');
+      for (const project of shared) {
+        const index = projects.findIndex(existing => existing.id === project.id);
+        if (index >= 0) projects[index] = project;
+        else projects.push(project);
+      }
+      this.projects.set(projects);
+      const requestedId = this.savedProjects.requestedActiveId;
+      if (requestedId && this.activeProjectId() === this.savedProjects.activeId && projects.some(project => project.id === requestedId)) {
+        this.activeProjectId.set(requestedId);
+        this.previewProjectId.set(requestedId);
+      }
+      this.cloudError.set('');
+    } catch (error) {
+      this.cloudError.set(error instanceof Error ? error.message : 'Shared projects could not be loaded.');
+    }
   }
 
   async loadDemoProjects() {
@@ -97,17 +123,6 @@ export class App {
       this.activeProjectId.set(requested);
       this.previewProjectId.set(requested);
     }
-  }
-
-  exportDemoData() {
-    if (this.role() !== 'designer') return;
-    const url = URL.createObjectURL(new Blob([exportDemoData(this.projects(), this.activeProjectId())], { type: 'application/json' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'demo-projects.json';
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url));
-    this.showNotice('Demo data exported');
   }
 
   openWelcome() {
@@ -150,7 +165,6 @@ export class App {
   }
 
   showProjects(view: 'library' | 'create' | 'manage' | 'icon-libraries') {
-    if (view === 'create' && this.role() !== 'designer') return;
     this.editingProjectId.set(null);
     this.view.set(view);
     this.menuOpen.set(false);
@@ -164,7 +178,8 @@ export class App {
 
   private commitProjects(projects: Project[], activeId: string | null): boolean {
     try {
-      saveProjectState(projects, activeId, undefined, this.demoProjects, this.removedDemoIds);
+      const localProjects = projects.filter(project => project.source !== 'shared');
+      saveProjectState(localProjects, activeId, undefined, this.demoProjects, this.removedDemoIds);
       this.projects.set(projects);
       this.activeProjectId.set(activeId);
       this.projectError.set('');
@@ -175,20 +190,58 @@ export class App {
     }
   }
 
-  createProject(project: Project) {
-    if (this.role() !== 'designer') return;
-    if (!project.name.trim() || !project.tokens || this.projects().some(existing => existing.id === project.id || existing.name.toLowerCase() === project.name.toLowerCase())) {
-      this.projectError.set('Use a unique project name and a valid token JSON file.');
+  async createProject(project: Project) {
+    if (!project.name.trim() || !project.tokens || !project.tokenFileName.trim() || !Number.isSafeInteger(project.tokenCount) || project.tokenCount < 1
+      || this.projects().some(existing => existing.id === project.id || existing.name.toLowerCase() === project.name.toLowerCase())) {
+      this.projectError.set('Use a unique project name and choose a valid token JSON file containing at least one token value.');
       return;
     }
-    if (this.commitProjects([...this.projects(), project], project.id)) {
-      this.showProjects('manage');
-      this.showNotice('Project created');
+    this.projectSaving.set(true);
+    this.projectError.set('');
+    try {
+      const published = await this.sharedProjects.publish(project);
+      if (published.source === 'shared') {
+        const projects = [...this.projects().filter(existing => existing.id !== published.id), published];
+        this.projects.set(projects);
+        this.activeProjectId.set(published.id);
+        this.commitProjects(projects, published.id);
+        this.cloudError.set('');
+        this.showProjects('manage');
+        this.showNotice('Project published publicly');
+      } else if (this.commitProjects([...this.projects(), published], published.id)) {
+        this.showProjects('manage');
+        this.showNotice('Project created');
+      }
+    } catch (error) {
+      this.projectError.set(error instanceof Error ? error.message : 'The project could not be published.');
+    } finally {
+      this.projectSaving.set(false);
+    }
+  }
+
+  async publishProject(project: Project) {
+    if (project.source === 'shared' || project.status !== 'Draft') return;
+    if (!project.tokens || !project.tokenFileName.trim() || !Number.isSafeInteger(project.tokenCount) || project.tokenCount < 1) {
+      this.projectError.set('This draft has no valid token JSON file. Edit it and choose a valid file before publishing.');
+      return;
+    }
+    this.projectSaving.set(true);
+    this.projectError.set('');
+    try {
+      const published = await this.sharedProjects.publish(project);
+      if (published.source !== 'shared') throw new Error('The saved project was not confirmed as public.');
+      this.projects.update(projects => projects.map(existing => existing.id === project.id ? published : existing));
+      this.commitProjects(this.projects(), this.activeProjectId());
+      this.showNotice('Project published publicly');
+    } catch (error) {
+      this.projectError.set(error instanceof Error ? error.message : 'The project could not be published.');
+    } finally {
+      this.projectSaving.set(false);
     }
   }
 
   editProject(id: string) {
-    if (this.role() !== 'designer' || !this.projects().some(project => project.id === id)) return;
+    if (this.role() !== 'designer' || this.projectSaving() || !this.projects().some(project => project.id === id)) return;
     this.editingProjectId.set(id);
     this.view.set('edit');
     this.menuOpen.set(false);
@@ -196,10 +249,39 @@ export class App {
     document.getElementById('main')?.focus({ preventScroll: true });
   }
 
-  saveProject(project: Project) {
-    if (this.role() !== 'designer' || this.editingProjectId() !== project.id || !project.name.trim() || !project.tokens) return;
+  async saveProject(project: Project) {
+    if (this.role() !== 'designer' || this.projectSaving() || this.editingProjectId() !== project.id) return;
+    const original = this.projects().find(existing => existing.id === project.id);
+    if (!original) {
+      this.projectError.set('The project no longer exists. Reload the project list before editing.');
+      return;
+    }
+    if (!project.name.trim() || !project.tokens || !project.tokenFileName.trim() || !Number.isSafeInteger(project.tokenCount) || project.tokenCount < 1) {
+      this.projectError.set('Enter a project name and choose a valid token JSON file containing at least one token value.');
+      return;
+    }
     if (this.projects().some(existing => existing.id !== project.id && existing.name.toLowerCase() === project.name.trim().toLowerCase())) {
       this.projectError.set('Use a unique project name and a valid token JSON file.');
+      return;
+    }
+    if (original.source === 'shared') {
+      this.projectSaving.set(true);
+      this.projectError.set('');
+      try {
+        const result = await this.sharedProjects.update(project);
+        if (result.project.source !== 'shared' || result.project.id !== original.id) {
+          throw new Error('The saved project was not confirmed as the same public project.');
+        }
+        this.projects.update(projects => projects.map(existing => existing.id === original.id ? result.project : existing));
+        this.cloudError.set('');
+        this.showProjects('manage');
+        if (result.warning) this.projectError.set(result.warning);
+        else this.showNotice('Public project updated');
+      } catch (error) {
+        this.projectError.set(error instanceof Error ? error.message : 'The public project could not be saved.');
+      } finally {
+        this.projectSaving.set(false);
+      }
       return;
     }
     if (this.commitProjects(this.projects().map(existing => existing.id === project.id ? project : existing), this.activeProjectId())) {
@@ -222,7 +304,7 @@ export class App {
   }
 
   requestProjectDeletion(request: { project: Project; trigger: HTMLButtonElement }, dialog: HTMLDialogElement) {
-    if (this.role() !== 'designer') return;
+    if (request.project.source !== 'shared' && this.role() !== 'designer') return;
     const project = this.projects().find(project => project.id === request.project.id);
     if (!project || project.status === 'Base') return;
     this.pendingDeletion.set(project);
@@ -230,9 +312,32 @@ export class App {
     dialog.showModal();
   }
 
-  confirmProjectDeletion(dialog: HTMLDialogElement) {
+  async confirmProjectDeletion(dialog: HTMLDialogElement) {
     const project = this.pendingDeletion();
-    if (!project || project.status === 'Base' || this.role() !== 'designer') return;
+    if (!project || project.status === 'Base' || (project.source !== 'shared' && this.role() !== 'designer') || this.projectSaving()) return;
+
+    if (project.source === 'shared') {
+      this.projectSaving.set(true);
+      this.projectError.set('');
+      try {
+        const cleanupWarning = await this.sharedProjects.delete(project.id);
+        const remaining = this.projects().filter(existing => existing.id !== project.id);
+        const activeId = this.activeProjectId() === project.id ? remaining[0]?.id ?? null : this.activeProjectId();
+        this.projects.set(remaining);
+        this.activeProjectId.set(activeId);
+        this.previewProjectId.set(activeId);
+        this.commitProjects(remaining, activeId);
+        dialog.close();
+        if (cleanupWarning) this.projectError.set(cleanupWarning);
+        else this.showNotice('Public project deleted');
+      } catch (error) {
+        this.projectError.set(error instanceof Error ? error.message : 'The public project could not be deleted.');
+      } finally {
+        this.projectSaving.set(false);
+      }
+      return;
+    }
+
     const remaining = this.projects().filter(existing => existing.id !== project.id);
     const activeId = this.activeProjectId() === project.id ? remaining[0]?.id ?? null : this.activeProjectId();
     const previousRemoved = this.removedDemoIds;

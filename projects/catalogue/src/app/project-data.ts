@@ -20,6 +20,7 @@ export interface Project {
   tokenCount: number;
   createdAt: string;
   status: 'Base' | 'Sample' | 'Draft';
+  source?: 'shared';
 }
 
 export interface ProjectState { projects: Project[]; activeId: string | null; warning: string; storedIds: string[]; requestedActiveId: string | null; removedDemoIds: string[]; }
@@ -190,6 +191,13 @@ export function missingComponentTokens(tokens: Record<string, unknown> | null): 
   return COMPONENT_COLOUR_TOKENS.filter(name => !variables[`--colours-${name}`]).map(name => `colours.${name.replace('-', '.')}`);
 }
 
+const COLOUR_GROUP_ORDER: Record<string, readonly string[]> = {
+  colours: ['main', 'functions'],
+  'colours.main': ['neutral', 'accent', 'secondary', 'global', 'primary'],
+  'colours.functions': ['success', 'warning', 'info', 'magic', 'error'],
+};
+const COLOUR_NAME_ORDER = new Intl.Collator('en', { numeric: true });
+
 export function projectTokenList(tokens: Record<string, unknown> | null): DesignToken[] {
   const collection = tokens?.['Primitive/Indice'];
   if (!isObject(collection)) return [];
@@ -206,7 +214,17 @@ export function projectTokenList(tokens: Record<string, unknown> | null): Design
       list.push({ name: segments.join('.'), variable: `--indice-${segments.join('-')}`, category: segments[0], group: segments.slice(0, -1).join('.'), label: segments.at(-1) ?? '', value, cssValue, type });
       return;
     }
-    for (const [key, child] of Object.entries(node)) {
+    const entries = Object.entries(node);
+    if (segments[0] === 'colours') {
+      const order = COLOUR_GROUP_ORDER[segments.join('.')] ?? [];
+      const rank = (name: string) => {
+        const index = order.indexOf(name);
+        return index < 0 ? order.length : index;
+      };
+      // JSON object order can change when token data is stored in Supabase JSONB.
+      entries.sort(([a], [b]) => rank(a) - rank(b) || COLOUR_NAME_ORDER.compare(a, b));
+    }
+    for (const [key, child] of entries) {
       if (!key.startsWith('$') && key !== '-' && isObject(child)) visit(child, [...segments, key]);
     }
   }
@@ -267,6 +285,7 @@ export function loadProjectState(storage?: Pick<Storage, 'getItem'>): ProjectSta
 
 function changedProjects(projects: Project[], reference: Project[]): Project[] {
   return projects.filter(project => {
+    if (project.source === 'shared') return false;
     const original = reference.find(item => item.id === project.id) ?? BASE_PROJECTS.find(item => item.id === project.id);
     return original ? JSON.stringify(project) !== JSON.stringify(original) : !BASE_PROJECT_IDS.has(project.id);
   });
@@ -277,10 +296,6 @@ export function saveProjectState(projects: Project[], activeId: string | null, s
   try { (storage ?? localStorage).setItem(PROJECT_STORAGE_KEY, JSON.stringify({ version: 1, projects: uploaded, activeId, ...(removedDemoIds.length ? { removedDemoIds } : {}) })); }
   catch { throw new Error('Projects could not be saved in this browser. Free storage space or remove reference images, then try again.'); }
 }
-export function exportDemoData(projects: Project[], activeId: string | null): string {
-  return JSON.stringify({ version: 1, projects: changedProjects(projects, []), activeId }, null, 2) + '\n';
-}
-
 export function parseDemoData(source: unknown): Project[] {
   if (!isObject(source) || source['version'] !== 1 || !Array.isArray(source['projects'])) return [];
   return source['projects'].filter(isProject).filter(project => !BASE_PROJECT_IDS.has(project.id) || BASE_PROJECTS.some(base => base.id === project.id && project.status === 'Base'))
