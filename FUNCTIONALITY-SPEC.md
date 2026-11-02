@@ -12,6 +12,10 @@ restore automatic opening only when requested for the demo.
 
 ## Demo page URLs
 
+Page titles have no breadcrumb-style `INDICE / ...` label above them, across
+Foundations, Components, project pages and icon libraries. Keep the page titles
+and Back links; the demo ribbon is unchanged.
+
 - Use hash-based page URLs so GitHub Pages supports direct visits and refreshes
   without server-side rewrite rules.
 - Foundations: `#/colours`, `#/typography`, `#/spacing`, `#/borders`, `#/containers`.
@@ -19,6 +23,7 @@ restore automatic opening only when requested for the demo.
   `#/components/social-buttons`, `#/components/fields`.
 - Projects: `#/manage-projects`, `#/add-project`, `#/projects/:id/edit`.
 - Icon libraries: `#/icon-libraries`.
+- Tokens for the currently selected project: `#/tokens`.
 - Page navigation updates the URL. Refresh restores the page, and browser
   Back/Forward restores previous pages. The project selection continues to use
   existing persistence; the page URL does not select a project for library views.
@@ -64,8 +69,9 @@ These permissions are intentionally unsuitable for production.
   catalogue identity `iam` and selection without duplicate rows. Supabase uses a
   stable UUID internally. Bundled demo data must not override shared assets.
 - A fresh browser with the current app loads the shared IAM record and images.
-- Existing tokens can be retained; selecting a valid replacement updates the
-  filename, token count, palette and component theme after saving.
+- Edit project retains the current token file and offers Manage tokens for that
+  project. Token replacement is available only through the Tokens page. Add
+  project still requires the initial JSON file.
 - Shared updates retain the project ID and creation timestamp, and are visible
   to other visitors and after reload. They are not stored as local drafts.
 - Unchanged shared images retain their URLs. Replacements upload as new assets;
@@ -74,15 +80,82 @@ These permissions are intentionally unsuitable for production.
   form open, preserve entered values and show an error without claiming success.
 - A successful save with failed image cleanup shows a warning that distinguishes
   the saved project from leftover images.
-- Cancel without saving leaves the project unchanged. Concurrent edits use the
-  last successful save; there is no version history or conflict resolution.
+- Cancel without saving leaves the project unchanged. Concurrent project-detail
+  edits use the last successful save; there is no conflict resolution. Token
+  snapshots have their own history, described below.
+
+## Tokens and revision history
+
+- Add/Edit project and New token version open as right-side modal drawers,
+  full-screen on mobile, with fixed actions, Escape/backdrop dismissal, focus
+  handling and an unsaved-changes confirmation when closing. Saving errors keep
+  the drawer and entered values available. Refresh restores the hash route, not
+  unsaved form data.
+- Both project drawers use Details, Brand assets, Resources and Review steps.
+  Next validates the current step; Back retains all inputs and selected files.
+  Resources includes design references. Only Review offers the final save action.
+- The Tokens page uses a current-version card with metadata and download actions,
+  a compact history list with consistent badges, and a Designer-only New version
+  action rather than an always-visible upload form. JSON inspection is read-only
+  in a drawer.
+
+- Tokens appears above Foundations with the same chapter style as Icons
+  libraries. It opens the selected project's Tokens page; switching the header
+  project changes the page's data and clears unsaved revision input.
+- The Tokens heading does not repeat the project name; its content uses the
+  shared page container without a narrower inner width. Tokens has a borderless
+  sidebar item and spacing before Foundations. The four main sidebar categories
+  use distinct icons, and only the displayed page is marked active.
+- Current token version shows version, readiness status, JSON filename, token
+  count, snapshot creation date, optional change note, View JSON and Download JSON.
+- Current readiness is displayed as a badge on the Tokens page and beside the
+  Tokens sidebar item, including while browsing other pages. It follows the
+  selected project's current revision, not an upcoming draft. No status is
+  invented for projects without initialized shared history.
+- History lists every non-current saved revision, including upcoming drafts.
+  Viewing/downloading never changes the active project or its theme.
+- Designer mode can upload a new revision, edit readiness status and Make current.
+  Developer mode can view and download only. Roles remain demo UI controls, not
+  server authentication; anonymous API writes are deliberately allowed.
+- Versions are entered explicitly as three numeric parts, such as `1.1.0`, and
+  must be unique within the project. Saving does not increment a version.
+- Readiness statuses are Draft, In review, Ready and Deprecated. Status belongs
+  to the revision, not the project. Public visibility and legacy Base/Draft labels
+  are separate concepts.
+- Upload defaults to Draft. A new snapshot preserves its token data, version,
+  filename, count, date and change note; only readiness status can be edited.
+  There is no individual revision delete or overwrite action.
+- Saving a new version automatically makes it current, regardless of readiness.
+  The insert and project pointer/token update run in one database transaction;
+  failure rolls both back. Foundations/component previews then use that snapshot;
+  the previous current snapshot remains in History. Make current remains available
+  for restoring an existing history entry. Previously uploaded entries are not
+  retrospectively activated when setup is rerun.
+- In this demo, any saved readiness status can be made current. Show a readiness
+  warning if current is not Ready; there is no enforced release-approval workflow.
+- The header Source JSON download is removed. Downloads on Tokens export the
+  chosen snapshot, not the bundled IAM primitive file. JSON formatting/key order
+  may differ from the original upload; token data is preserved.
+- Supabase stores snapshots in `token_revisions` and a current pointer on
+  `projects`. Deleting a project cascades to its revision history.
+- Running the updated SQL seeds each existing shared project's saved token file
+  as version 1.0.0, Ready, with an initial-file note. Its date is the migration
+  date, not a reconstructed historical upload date. Rerunning does not duplicate
+  history. Newly published projects receive the same initial revision automatically.
+- Bundled IAM and local drafts show their saved file without invented history.
+  A Designer can explicitly Initialize shared history, which publishes the project
+  and assets; failure retains the local version. Once shared, history is consistent
+  across browsers. Previously overwritten uploads cannot be recovered.
+- Loading, duplicate-version, invalid-file, status-save and activation failures
+  must be visible. Failed activation leaves current unchanged. Missing database
+  setup shows an error and retry rather than fabricated local history.
 
 ## Required data and uploads
 
 - A unique, nonempty project name (maximum 80 characters) and a valid token JSON
   containing at least one token value are required for creating or saving.
 - Token files must have a `.json` extension and be at most 1 MB.
-- Invalid replacement tokens block saving; the previous saved project is unchanged.
+- Invalid revision uploads block saving; the previous saved project is unchanged.
 - Customer, description, logos, thumbnail, Figma link and reference images are
   optional. Platform and theme support have defaults.
 - Figma links, when supplied, must use HTTPS on figma.com or its subdomains.
@@ -135,10 +208,12 @@ bundled fallback is not implemented; the universal requirement still applies.
 Automated catalogue tests cover role/action visibility, edit/save routing,
 validation, persistence boundaries and deterministic palette ordering. Supabase
 service tests cover update requests, asset retention/replacement and failures.
+Revision tests cover automatic upload activation, current/theme changes, role
+restrictions, downloads, project switching, immutable history and API errors.
 
 Run `npx ng test catalogue --watch=false` and `npx ng build catalogue`.
 After applying [Supabase setup](supabase/setup.sql), manually verify a disposable
-public project's edit, reload, token replacement and deletion across browsers.
+public project's edit, reload, revision upload/activation and deletion across browsers.
 Do not use the real project for destructive acceptance checks.
 
 The GitHub Pages website must be redeployed with the current Supabase-enabled

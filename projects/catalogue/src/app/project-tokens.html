@@ -1,0 +1,79 @@
+<header class="projects-heading"><h1>Tokens</h1>
+  @if (canEdit() && current()) { <button type="button" class="primary-action" [disabled]="busy() || loading()" (click)="adding.set(true)"><app-icon name="add" />New version</button> }
+</header>
+@if ((error() || publishError()) && !adding()) { <p class="project-error" role="alert">{{ error() || publishError() }}</p> }
+@if (notice()) { <p class="token-notice" role="status"><app-icon name="check" />{{ notice() }}</p> }
+@if (project(); as project) {
+  @if (project.source !== 'shared') {
+    <section class="token-card current-card"><div class="section-label">Current token file</div><h2>{{ project.tokenFileName }}</h2><p>{{ project.tokenCount }} token values</p>
+      <button type="button" class="primary-action" (click)="download(project.tokens, project.tokenFileName)"><app-icon name="download" />Download JSON</button>
+      <p class="supporting-text">Initialize shared history to save versions across browsers. Previously overwritten files cannot be recovered.</p>
+      @if (canEdit()) { <button type="button" class="secondary-action" [disabled]="publishing()" (click)="publish.emit(project)">{{ publishing() ? 'Publishing...' : 'Initialize shared history' }}</button> }
+    </section>
+    <section class="history-section"><h2>Version history</h2><p class="empty-history">No saved revisions yet.</p></section>
+  } @else if (loading() && !current()) {
+    <p role="status">Loading token history...</p>
+  } @else if (current(); as current) {
+    <section class="token-card current-card">
+      <div class="current-heading"><div><div class="section-label">Current token version</div><h2>v{{ current.version }}</h2></div><span class="token-status" [attr.data-status]="current.status">{{ current.status }}</span></div>
+      <p class="current-file"><app-icon name="tokens" />{{ current.fileName }}</p>
+      <dl class="revision-metadata"><div><dt>Token values</dt><dd>{{ current.tokenCount }}</dd></div><div><dt>Uploaded</dt><dd>{{ current.createdAt | date:'mediumDate' }} <span>{{ current.createdAt | date:'shortTime' }}</span></dd></div></dl>
+      @if (current.changeNote) { <p class="change-note">{{ current.changeNote }}</p> }
+      <div class="revision-actions">
+        <button type="button" class="primary-action" (click)="download(current.tokens, current.fileName)"><app-icon name="download" />Download JSON</button>
+        <button type="button" class="secondary-action" (click)="selected.set(current)"><app-icon name="code" />View JSON</button>
+        @if (canEdit()) { <label class="status-control">Readiness<select [disabled]="busy() || loading()" (change)="onStatusChange(current, $any($event.target))">@for (status of statuses; track status) { <option [value]="status" [selected]="status === current.status">{{ status }}</option> }</select></label> }
+      </div>
+      @if (current.status !== 'Ready') { <p class="readiness-warning" role="status">This version is current, but marked {{ current.status }}. Check its readiness before using it.</p> }
+    </section>
+    <section class="history-section"><div class="history-heading"><h2>Version history</h2><span class="history-count">{{ history().length }}</span></div>
+      <p class="supporting-text">Previous versions stay available. Viewing or downloading a file never changes the current theme.</p>
+      <div class="history-list">
+        @for (item of history(); track item.id) {
+          <article class="revision-row">
+            <div class="revision-summary"><h3>v{{ item.version }} <span class="token-status" [attr.data-status]="item.status">{{ item.status }}</span></h3>
+              <p class="history-file">{{ item.fileName }}</p>
+              <p class="supporting-text">{{ item.tokenCount }} values <span aria-hidden="true">/</span> {{ item.createdAt | date:'medium' }}</p>
+              @if (item.changeNote) { <p class="history-note">{{ item.changeNote }}</p> }
+            </div>
+            <div class="revision-actions">
+              <button type="button" class="secondary-action" [attr.aria-label]="'View v' + item.version" (click)="selected.set(item)"><app-icon name="code" />View</button>
+              <button type="button" class="secondary-action" [attr.aria-label]="'Download v' + item.version" (click)="download(item.tokens, item.fileName)"><app-icon name="download" />Download</button>
+              @if (canEdit()) {
+                <label class="status-control">Readiness<select [attr.aria-label]="'Status for v' + item.version" [disabled]="busy() || loading()" (change)="onStatusChange(item, $any($event.target))">@for (status of statuses; track status) { <option [value]="status" [selected]="status === item.status">{{ status }}</option> }</select></label>
+                <button type="button" class="restore-action" [disabled]="busy() || loading()" (click)="makeCurrent(item)">Make v{{ item.version }} current<app-icon name="change" /></button>
+              }
+            </div>
+          </article>
+        } @empty { <div class="empty-history"><app-icon name="layers" /><h3>Your history starts here</h3><p>When a new version is uploaded, the current version will appear here.</p></div> }
+      </div>
+    </section>
+    @if (adding() && canEdit()) {
+      <app-side-drawer #uploadDrawer title="New token version" [dirty]="uploadDirty()" [busy]="busy() || reading()" (closed)="closeUpload()">
+        <p class="drawer-intro">Upload a new snapshot for {{ project.name }}. It will become current immediately, regardless of readiness status.</p>
+        @if (error()) { <p class="project-error" role="alert">{{ error() }}</p> }
+        <form (submit)="$event.preventDefault(); upload()">
+          <div class="form-grid">
+            <label>Version<input name="version" placeholder="1.1.0" required maxlength="40" [value]="version()" (input)="version.set($any($event.target).value)" /><span class="field-help">Three numbers, for example 1.1.0. Must be unique.</span></label>
+            <label>Readiness<select name="revisionStatus" (change)="status.set($any($event.target).value)">@for (option of statuses; track option) { <option [value]="option" [selected]="option === status()">{{ option }}</option> }</select></label>
+            <label class="full-width">Token JSON<input #file type="file" name="revisionTokens" required accept=".json,application/json" [disabled]="busy()" (change)="readFile($any($event.target).files?.[0] ?? null)" /><span class="field-help">JSON file, up to 1 MB.</span></label>
+            <label class="full-width">What changed? <span class="optional-mark">Optional</span><textarea rows="4" name="changeNote" maxlength="1000" [value]="note()" (input)="note.set($any($event.target).value)" placeholder="Summarize this update for your team"></textarea></label>
+          </div>
+          @if (reading()) { <p role="status">Reading token file...</p> }
+          @if (document(); as document) { <p class="token-notice" role="status">{{ fileName() }} / {{ document.count }} token values</p> }
+          @if (missing().length) { <p class="token-warning">This file is missing {{ missing().length }} component color roles. Those roles use IAM defaults when this revision is current.</p> }
+          <p class="activation-note"><app-icon name="change" />The previous current version will be kept in History.</p>
+          <footer class="form-actions"><button type="button" class="secondary-action" [disabled]="busy()" (click)="uploadDrawer.requestClose()">Cancel</button><button type="submit" class="primary-action" [disabled]="busy() || reading()">{{ busy() ? 'Saving...' : 'Save and make current' }}</button></footer>
+        </form>
+      </app-side-drawer>
+    }
+    @if (selected(); as item) {
+      <app-side-drawer [title]="'Token JSON / v' + item.version" (closed)="selected.set(null)">
+        <p class="drawer-intro">Read-only snapshot. Viewing it does not change the current theme.</p><pre tabindex="0">{{ json(item) }}</pre>
+        <footer class="form-actions"><button type="button" class="secondary-action" (click)="selected.set(null)">Close JSON</button><button type="button" class="primary-action" (click)="download(item.tokens, item.fileName)"><app-icon name="download" />Download JSON</button></footer>
+      </app-side-drawer>
+    }
+  } @else {
+    <button type="button" class="secondary-action" (click)="load()">Retry loading history</button>
+  }
+} @else { <p role="status">Select a project to view its tokens.</p> }

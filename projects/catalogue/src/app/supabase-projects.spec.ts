@@ -62,18 +62,23 @@ describe('Supabase shared editing', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('updates the existing row and retains remote images without uploading or changing identity', async () => {
+    project.templates = [{ name: 'Login page', figmaUrl: 'https://www.figma.com/design/example/login' }];
+    updateQuery.single.mockResolvedValue({ data: { ...original, name: 'Updated Evpulse', templates: project.templates }, error: null });
     const result = await service.update(project);
     expect(updateQuery.eq).toHaveBeenCalledWith('id', id);
     expect(updateQuery.single).toHaveBeenCalledOnce();
     expect(updateQuery.update).toHaveBeenCalledWith(expect.objectContaining({
-      name: 'Updated Evpulse', logo_light_key: key, image_keys: [reference], tokens: project.tokens,
+      name: 'Updated Evpulse', logo_light_key: key, image_keys: [reference], templates: project.templates,
     }));
     const changes = updateQuery.update.mock.calls[0][0];
     expect(changes).not.toHaveProperty('id');
     expect(changes).not.toHaveProperty('created_at');
+    expect(changes).not.toHaveProperty('tokens');
+    expect(changes).not.toHaveProperty('token_file_name');
+    expect(changes).not.toHaveProperty('token_count');
     expect(client.bucket.upload).not.toHaveBeenCalled();
     expect(client.bucket.remove).not.toHaveBeenCalled();
-    expect(result.project).toMatchObject({ id, source: 'shared', name: 'Updated Evpulse', createdAt: original.created_at });
+    expect(result.project).toMatchObject({ id, source: 'shared', name: 'Updated Evpulse', createdAt: original.created_at, templates: project.templates });
     expect(result.warning).toBeNull();
   });
 

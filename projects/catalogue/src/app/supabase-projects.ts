@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ICON_LIBRARIES } from './icon-library-data';
-import { BASE_PROJECT_ID, Project, PROJECT_MODES, PROJECT_PLATFORMS, validFigmaUrl } from './project-data';
+import { BASE_PROJECT_ID, Project, PROJECT_MODES, PROJECT_PLATFORMS, validFigmaUrl, validProjectTemplates } from './project-data';
 import { SUPABASE_PROJECTS_BUCKET, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './supabase.config';
 
 interface ProjectInsert {
@@ -12,6 +12,7 @@ interface ProjectInsert {
   modes: string;
   platform: string;
   figma_url: string;
+  templates: NonNullable<Project['templates']>;
   logo_dark_key: string | null;
   logo_light_key: string | null;
   thumbnail_key: string | null;
@@ -41,7 +42,7 @@ function projectRow(project: Project, assets: ProjectAssets): ProjectInsert {
   }
   return {
     id: databaseId(project.id), name: project.name, customer: project.customer, description: project.description,
-    modes: project.modes, platform: project.platform, figma_url: project.figmaUrl,
+    modes: project.modes, platform: project.platform, figma_url: project.figmaUrl, templates: project.templates ?? [],
     ...assets, icon_library_id: project.iconLibraryId ?? 'lucide',
     token_file_name: project.tokenFileName, tokens: project.tokens, token_count: project.tokenCount,
   };
@@ -144,7 +145,7 @@ export class SupabaseProjects {
       row = projectRow(project, {
         logo_dark_key: logoDark, logo_light_key: logoLight, thumbnail_key: thumbnail, image_keys: images,
       });
-      const { id, ...changes } = row;
+      const { id, tokens, token_file_name, token_count, ...changes } = row;
       const { data, error } = await client.from('projects').update(changes).eq('id', id).select('*').single();
       if (error) throw new Error(`The public project could not be saved: ${error.message}`);
       savedRow = data;
@@ -191,7 +192,7 @@ export class SupabaseProjects {
       : null;
   }
 
-  private async getClient(): Promise<SupabaseClient> {
+  async getClient(): Promise<SupabaseClient> {
     this.clientPromise ??= import('@supabase/supabase-js').then(({ createClient }) => createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY));
     return this.clientPromise;
   }
@@ -229,6 +230,7 @@ export class SupabaseProjects {
     const modes = requiredString(value, 'modes');
     const platform = requiredString(value, 'platform');
     const figmaUrl = requiredString(value, 'figma_url');
+    const templates = value['templates'] ?? [];
     const createdAt = requiredString(value, 'created_at');
     const logoDarkKey = optionalString(value, 'logo_dark_key');
     const logoLightKey = optionalString(value, 'logo_light_key');
@@ -249,6 +251,7 @@ export class SupabaseProjects {
       || !PROJECT_MODES.some(mode => mode === modes)
       || !PROJECT_PLATFORMS.some(item => item === platform)
       || !validFigmaUrl(figmaUrl)
+      || !validProjectTemplates(templates)
       || Number.isNaN(Date.parse(createdAt))) {
       throw new Error('Supabase returned invalid data for a shared project.');
     }
@@ -264,6 +267,7 @@ export class SupabaseProjects {
       modes,
       platform,
       figmaUrl,
+      templates,
       logoDark: optionalPublicUrl(logoDarkKey),
       logoLight: optionalPublicUrl(logoLightKey),
       thumbnail: optionalPublicUrl(thumbnailKey),

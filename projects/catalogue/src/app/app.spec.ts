@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { DeferBlockBehavior, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { HashLocationStrategy, Location, LocationStrategy, PlatformLocation } from '@angular/common';
 import { MockPlatformLocation } from '@angular/common/testing';
@@ -14,8 +14,42 @@ import { BASE_PROJECTS, loadProjectState, mergeDemoProjects, missingComponentTok
 import { Projects } from './projects';
 import { IconLibraries } from './icon-libraries';
 import { SupabaseProjects } from './supabase-projects';
+import { TokenRevisions } from './token-revisions';
+import { ProjectTokens } from './project-tokens';
 
 describe('App', () => {
+  it('keeps page titles and Back links without breadcrumb labels across all page types', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    const element = fixture.nativeElement as HTMLElement;
+    const check = () => {
+      expect(element.querySelector('main h1')?.textContent?.trim()).toBeTruthy();
+      expect(element.querySelector('main')?.textContent).not.toMatch(/INDICE\s*\//);
+      expect(element.querySelector('.eyebrow, .projects-eyebrow')).toBeNull();
+    };
+    for (const category of ['colours', 'fonts', 'space', 'border', 'containers', 'buttons', 'icon-buttons', 'social-buttons', 'fields']) {
+      app.select(category);
+      await fixture.whenStable();
+      check();
+    }
+    app.setRole('designer');
+    for (const view of ['manage', 'create', 'icon-libraries'] as const) {
+      app.showProjects(view);
+      await fixture.whenStable();
+      check();
+      expect(element.querySelector(view === 'create' ? '.drawer-header' : 'main .back-link')).not.toBeNull();
+    }
+    const libraries = fixture.debugElement.query(By.directive(IconLibraries)).componentInstance as IconLibraries;
+    libraries.opened.set('lucide');
+    await fixture.whenStable();
+    check();
+    app.editProject('iam');
+    await fixture.whenStable();
+    check();
+    expect(element.querySelector('.drawer-header')).not.toBeNull();
+  });
+
   it('keeps all 138 IAM colours in canonical order regardless of JSON object ordering', () => {
     function reorder(value: unknown): unknown {
       if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
@@ -122,14 +156,20 @@ describe('App', () => {
       await fixture.whenStable();
       const element = fixture.nativeElement as HTMLElement;
       const sections = [...element.querySelectorAll('.form-section')];
-      expect(sections.map(section => section.querySelector('h2')?.textContent?.trim())).toEqual(['Project details', 'Brand assets Optional', 'Design resources', 'Design references Optional']);
+      expect([...element.querySelectorAll('.project-stepper li')].map(step => step.textContent?.trim())).toEqual(['1Details', '2Brand assets', '3Resources', '4Templates', '5Review']);
+      expect(sections.map(section => section.querySelector('h2')?.textContent?.trim())).toEqual(['Project details', 'Brand assets Optional', 'Design resources', 'Design references Optional', 'Page templates Optional']);
       expect(sections[0].querySelector('.form-grid')?.lastElementChild?.querySelector('input')?.name).toBe('thumbnail');
       expect(sections[1].querySelectorAll('input[type="file"]').length).toBe(2);
-      expect(sections[2].querySelector('input[name="tokens"]')).not.toBeNull();
+      expect(!!sections[2].querySelector('input[name="tokens"]')).toBe(page === 'create');
       expect(sections[2].querySelectorAll('select[name="iconLibrary"] option').length).toBe(3);
+      expect((sections[4] as HTMLElement).hidden).toBe(true);
+      fixture.componentInstance.step.set(3);
+      fixture.detectChanges();
+      expect((sections[4] as HTMLElement).hidden).toBe(false);
     }
   });
   beforeEach(async () => {
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, writable: true, value: function (this: HTMLDialogElement) { this.setAttribute('open', ''); } });
     localStorage.removeItem(PROJECT_STORAGE_KEY);
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     const sharedProjects = {
@@ -142,8 +182,10 @@ describe('App', () => {
     };
     await TestBed.configureTestingModule({
       imports: [App],
+      deferBlockBehavior: DeferBlockBehavior.Playthrough,
       providers: [
         { provide: SupabaseProjects, useValue: sharedProjects },
+        { provide: TokenRevisions, useValue: { loadCurrentStatus: vi.fn().mockResolvedValue('Ready'), load: vi.fn().mockRejectedValue(new Error('History unavailable')) } },
         { provide: PlatformLocation, useClass: MockPlatformLocation },
         { provide: LocationStrategy, useClass: HashLocationStrategy },
       ],
@@ -170,7 +212,7 @@ describe('App', () => {
       expect(restored.componentInstance.category()).toBe(category);
       restored.destroy();
     }
-    for (const [view, path] of [['manage', '/manage-projects'], ['create', '/add-project'], ['icon-libraries', '/icon-libraries']] as const) {
+    for (const [view, path] of [['manage', '/manage-projects'], ['create', '/add-project'], ['icon-libraries', '/icon-libraries'], ['tokens', '/tokens']] as const) {
       app.showProjects(view);
       expect(location.path()).toBe(path);
       const restored = TestBed.createComponent(App);
@@ -178,7 +220,87 @@ describe('App', () => {
       expect(restored.componentInstance.view()).toBe(view);
       restored.destroy();
     }
-    expect(TestBed.inject(PlatformLocation).hash).toBe('#/icon-libraries');
+    expect(TestBed.inject(PlatformLocation).hash).toBe('#/tokens');
+  });
+
+  it('marks only the displayed sidebar page active and uses distinct chapter icons', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    const sidebar = (fixture.nativeElement as HTMLElement).querySelector('.sidebar')!;
+    const active = () => [...sidebar.querySelectorAll('button.active')];
+    for (const category of ['colours', 'fonts', 'space', 'border', 'containers', 'buttons', 'icon-buttons', 'social-buttons', 'fields']) {
+      app.select(category);
+      await fixture.whenStable();
+      expect(active()).toHaveLength(1);
+      expect(active()[0].getAttribute('aria-current')).toBe('page');
+      app.showProjects('tokens');
+      await fixture.whenStable();
+      expect(active()).toEqual([sidebar.querySelector('.tokens-chapter')]);
+      expect(sidebar.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+    }
+    app.showProjects('icon-libraries');
+    await fixture.whenStable();
+    expect(active()).toEqual([sidebar.querySelector('.sidebar-bottom button')]);
+    app.showProjects('manage');
+    await fixture.whenStable();
+    expect(active()).toHaveLength(0);
+    expect(sidebar.querySelector('[aria-current="page"]')).toBeNull();
+    expect(sidebar.querySelector('.tokens-chapter .nav-count')).toBeNull();
+    expect(Number(sidebar.querySelector('.nav-section > summary .nav-count')?.textContent)).toBeGreaterThan(0);
+    expect(sidebar.querySelector('.components-chapter > summary .nav-count')?.textContent).toBe('26');
+    expect(sidebar.querySelector('.template-section > summary .nav-count')?.textContent).toBe('2');
+    expect(sidebar.querySelector('.sidebar-bottom .nav-count')?.textContent).toBe('3');
+    const chapterIcons = [...sidebar.querySelectorAll('.chapter > app-icon:first-child svg')];
+    expect(chapterIcons).toHaveLength(5);
+    expect(new Set(chapterIcons.map(icon => icon.innerHTML)).size).toBe(5);
+  });
+
+  it('places Tokens above Foundations and applies only explicitly activated revisions to previews', async () => {
+    const original = {
+      id: 'initial', version: '1.0.0', status: 'Ready' as const, changeNote: '', fileName: 'initial.json',
+      tokens: { 'Primitive/Indice': { colours: { main: { primary: { '600': { $value: '#123456' } } } } } },
+      tokenCount: 1, createdAt: '2026-10-29T10:00:00Z',
+    };
+    const next = {
+      ...original, id: 'next', version: '1.1.0',
+      tokens: { 'Primitive/Indice': { colours: { main: { primary: { '600': { $value: '#0089e8' } } } } } },
+    };
+    let currentId = original.id;
+    TestBed.overrideProvider(TokenRevisions, { useValue: {
+      load: vi.fn(async () => ({ currentId, revisions: [next, original] })),
+      loadCurrentStatus: vi.fn().mockResolvedValue('Ready'),
+      activate: vi.fn(async () => { currentId = next.id; }),
+    } });
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    app.projects.update(projects => [...projects, {
+      ...structuredClone(BASE_PROJECTS[0]), id: 'revision-project', source: 'shared',
+      tokens: original.tokens, tokenFileName: original.fileName, tokenCount: 1,
+    }]);
+    app.setRole('designer');
+    app.openProjectTokens('revision-project');
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    const sidebar = element.querySelector('.sidebar')!;
+    const tokensButton = sidebar.querySelector('.tokens-chapter')!;
+    expect(tokensButton.compareDocumentPosition(sidebar.querySelector('.nav-section')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(TestBed.inject(Location).path()).toBe('/tokens');
+    expect(tokensButton.querySelector('.token-status')?.textContent).toBe('Ready');
+    const component = fixture.debugElement.query(By.directive(ProjectTokens)).componentInstance as ProjectTokens;
+    component.selected.set(next);
+    expect(app.tokens().find(token => token.name === 'colours.main.primary.600')?.value).toBe('#123456');
+    await component.makeCurrent(next);
+    await fixture.whenStable();
+    expect(app.tokens().find(token => token.name === 'colours.main.primary.600')?.value).toBe('#0089e8');
+    expect(app.projectTheme()['--indice-colours-main-primary-600']).toBe('#0089e8');
+    app.select('colours');
+    await fixture.whenStable();
+    expect(tokensButton.querySelector('.token-status')?.textContent).toBe('Ready');
+    app.activateProject('iam');
+    await fixture.whenStable();
+    expect(tokensButton.querySelector('.token-status')).toBeNull();
   });
 
   it('handles browser history and invalid links without reopening welcome or breaking skip links', async () => {
@@ -229,7 +351,7 @@ describe('App', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     expect(app.editingProject()).toEqual(shared);
-    expect(fixture.nativeElement.querySelector('app-projects h1').textContent).toBe('Edit Public');
+    expect(fixture.nativeElement.querySelector('.drawer-header h2').textContent).toBe('Edit Public');
     expect(TestBed.inject(Location).path()).toBe('/projects/public-project/edit');
     app.showProjects('manage');
     app.editProject('iam');
@@ -292,7 +414,7 @@ describe('App', () => {
       expect(dialog.close).toHaveBeenCalledOnce();
       expect(dialog.open).toBe(false);
       expect((element.querySelector('.topbar .add-project') as HTMLButtonElement).hidden).toBe(false);
-      expect(element.querySelector('.topbar a[download]')).not.toBeNull();
+      expect(element.querySelector('.topbar a[download]')).toBeNull();
       expect(element.querySelector('.export-demo')).toBeNull();
       const radio = element.querySelector(`input[name="demo-role"][value="${role}"]`) as HTMLInputElement;
       const focus = vi.spyOn(radio, 'focus');
@@ -452,15 +574,43 @@ describe('App', () => {
     component.submit();
     expect(create).not.toHaveBeenCalled();
     await component.selectTokenFile({ name: 'tokens.json', size: 100, text: async () => '{"brand":{"$value":"#123456"}}' } as File);
+    component.addTemplate();
+    component.updateTemplate(0, 'name', 'Login page');
+    component.submit();
+    expect(component.formError()).toContain('Each template needs a name');
+    component.updateTemplate(0, 'figmaUrl', 'https://www.figma.com/design/example/login');
     component.submit();
     expect(create).toHaveBeenCalledOnce();
-    expect(create.mock.calls[0][0]).toMatchObject({ name: 'Demo customer', customer: '', figmaUrl: '', images: [], tokenFileName: 'tokens.json', tokenCount: 1, status: 'Draft', iconLibraryId: 'lucide' });
+    expect(create.mock.calls[0][0]).toMatchObject({ name: 'Demo customer', customer: '', figmaUrl: '', templates: [{ name: 'Login page', figmaUrl: 'https://www.figma.com/design/example/login' }], images: [], tokenFileName: 'tokens.json', tokenCount: 1, status: 'Draft', iconLibraryId: 'lucide' });
     expect((fixture.nativeElement as HTMLElement).querySelector('select[name="iconLibrary"]')).not.toBeNull();
     expect((fixture.nativeElement as HTMLElement).querySelectorAll('[required]').length).toBe(2);
     component.update('figmaUrl', 'https://not-figma.example');
     component.submit();
     expect(component.formError()).toContain('HTTPS Figma');
     expect(create).toHaveBeenCalledOnce();
+  });
+
+  it('requires valid templates on step four before showing Review on step five', async () => {
+    const fixture = TestBed.createComponent(Projects);
+    fixture.componentRef.setInput('page', 'create');
+    fixture.componentRef.setInput('canEdit', true);
+    await fixture.whenStable();
+    const component = fixture.componentInstance;
+    component.update('name', 'Template project');
+    await component.selectTokenFile({ name: 'tokens.json', size: 20, text: async () => '{"brand":"#000000"}' } as File);
+    component.step.set(2);
+    component.next();
+    expect(component.step()).toBe(3);
+    component.addTemplate();
+    component.next();
+    expect(component.step()).toBe(3);
+    expect(component.formError()).toContain('Each template needs a name');
+    component.updateTemplate(0, 'name', 'Login page');
+    component.updateTemplate(0, 'figmaUrl', 'https://www.figma.com/design/example/login');
+    component.next();
+    expect(component.step()).toBe(4);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.review-summary')?.textContent).toContain('1 links');
   });
 
   it('uploads optional dark and light theme logos, previews them, and includes both in the draft', async () => {
@@ -598,19 +748,14 @@ describe('App', () => {
     expect(form.tokenFileName()).toBe('old.json');
     expect(fixture.nativeElement.querySelector('.draft-summary').textContent).toContain('Saving publishes');
     form.update('name', 'Updated project');
-    await form.selectTokenFile({
-      name: 'new.json', size: 100,
-      text: async () => '{"Primitive/Indice":{"colours":{"main":{"primary":{"600":{"$value":"#0089e8","$type":"color"}}}}}}',
-    } as File);
     form.submit();
     await fixture.whenStable();
     expect(update).toHaveBeenCalledOnce();
     expect(app.view()).toBe('manage');
     expect(app.currentProject()).toMatchObject({
-      id: shared.id, source: 'shared', name: 'Updated project', tokenFileName: 'new.json',
-      tokenCount: 1, logoLight: shared.logoLight, images: shared.images,
+      id: shared.id, source: 'shared', name: 'Updated project', tokenFileName: 'old.json',
+      tokenCount: shared.tokenCount, tokens: shared.tokens, logoLight: shared.logoLight, images: shared.images,
     });
-    expect(app.tokens().find(token => token.name === 'colours.main.primary.600')?.value).toBe('#0089e8');
     expect(loadProjectState().projects.some(project => project.id === shared.id)).toBe(false);
     const saved = app.currentProject()!;
     vi.spyOn(TestBed.inject(SupabaseProjects), 'list').mockResolvedValue([saved]);
@@ -643,8 +788,7 @@ describe('App', () => {
     await app.saveProject(changes);
     expect(update).toHaveBeenCalledOnce();
     await form.selectTokenFile({ name: 'invalid.json', size: 10, text: async () => '{' } as File);
-    form.submit();
-    expect(form.formError()).toContain('valid token JSON');
+    expect(form.formError()).toContain('Tokens page');
     expect(update).toHaveBeenCalledOnce();
     app.projectSaving.set(false);
     app.setRole('developer');
@@ -771,7 +915,7 @@ describe('App', () => {
     expect(create).toHaveBeenCalledOnce();
   });
 
-  it('edits a project from Manage projects, keeping its tokens unless a replacement JSON is chosen', async () => {
+  it('edits project details while retaining tokens and delegates replacement to the Tokens page', async () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
     app.setRole('designer');
@@ -783,14 +927,16 @@ describe('App', () => {
     (element.querySelector('[aria-label="Edit Novio"]') as HTMLButtonElement).click();
     await fixture.whenStable();
     expect(app.view()).toBe('edit');
-    expect(element.querySelector('.topbar')?.hasAttribute('hidden')).toBe(true);
-    expect(element.querySelector('app-projects h1')?.textContent).toContain('Edit Novio');
+    expect(element.querySelector('.topbar')?.hasAttribute('hidden')).toBe(false);
+    expect(element.querySelector('.drawer-header h2')?.textContent).toContain('Edit Novio');
     const form = fixture.debugElement.query(By.directive(Projects)).componentInstance as Projects;
     expect(form.draft().name).toBe('Novio');
     expect(form.iconLibraryId()).toBe('lucide');
     expect(form.tokenFileName()).toBe('old.json');
     expect(form.logos().light).toBe(project.logoLight);
     expect((element.querySelector('input[name="projectName"]') as HTMLInputElement).value).toBe('Novio');
+    form.step.set(4);
+    await fixture.whenStable();
     expect(element.querySelector('app-projects .primary-action')?.textContent).toContain('Save changes');
     form.update('name', 'IAM');
     form.submit();
@@ -806,7 +952,7 @@ describe('App', () => {
     await form.selectTokenFile({ name: 'new.json', size: 20, text: async () => '{"color":"#222222","other":"#333333"}' } as File);
     form.submit();
     await fixture.whenStable();
-    expect(loadProjectState().projects.find(item => item.id === 'novio')).toMatchObject({ tokenFileName: 'new.json', tokenCount: 2, tokens: { color: '#222222' }, iconLibraryId: 'lucide' });
+    expect(loadProjectState().projects.find(item => item.id === 'novio')).toMatchObject({ tokenFileName: 'old.json', tokenCount: 1, tokens: { color: '#111111' }, iconLibraryId: 'lucide' });
     app.editProject('iam');
     await fixture.whenStable();
     form.update('name', 'IAM edited');
@@ -1019,8 +1165,8 @@ describe('App', () => {
     await fixture.whenStable();
     expect(fixture.componentInstance.view()).toBe('create');
     expect((element.querySelector('.demo-ribbon') as HTMLElement).hidden).toBe(false);
-    expect((element.querySelector('.topbar') as HTMLElement).hidden).toBe(true);
-    expect(element.querySelector('app-projects h1')?.textContent).toBe('Add project');
+    expect((element.querySelector('.topbar') as HTMLElement).hidden).toBe(false);
+    expect(element.querySelector('.drawer-header h2')?.textContent).toBe('Add project');
     expect(element.querySelector('.project-dialog')).toBeNull();
     (element.querySelector('.demo-ribbon input[value="designer"]') as HTMLInputElement).click();
     await fixture.whenStable();
@@ -1070,17 +1216,13 @@ describe('App', () => {
     expect(dialog.close).toHaveBeenCalledOnce();
     expect(app.activeProjectId()).toBe('uploaded-two');
   });
-  it('moves source JSON to the topbar and opens icon libraries from the sidebar for both roles', async () => {
+  it('removes the topbar source download and opens icon libraries from the sidebar for both roles', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
-    const link = element.querySelector('.topbar .source-link') as HTMLAnchorElement;
-    expect(link.textContent).toContain('Source JSON');
-    expect(link.getAttribute('href')).toBe('tokens/primitive.json');
-    expect(link.getAttribute('download')).toBe('indice-primitives.json');
-    expect(link.previousElementSibling?.classList.contains('project-select')).toBe(true);
+    expect(element.querySelector('.topbar .source-link')).toBeNull();
     expect(element.querySelector('.sidebar-bottom a[download]')).toBeNull();
-    expect(element.querySelectorAll('.source-link[download]').length).toBe(1);
+    expect(element.querySelectorAll('.source-link[download]').length).toBe(0);
     expect(element.querySelector('.sidebar-bottom')?.textContent).not.toContain('In progress');
     expect(element.querySelector('.status-dot')).toBeNull();
     const navigation = element.querySelector('.sidebar-bottom button') as HTMLButtonElement;
@@ -1136,13 +1278,13 @@ describe('App', () => {
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
     const sections = [...element.querySelectorAll<HTMLDetailsElement>('.sidebar .nav-section')];
-    expect(sections.length).toBe(2);
-    expect(sections.every(section => section.open)).toBe(true);
+    expect(sections.length).toBe(3);
+    expect(sections.every(section => !section.open)).toBe(true);
     const foundations = sections[0];
     (foundations.querySelector('summary') as HTMLElement).click();
-    expect(foundations.open).toBe(false);
-    (foundations.querySelector('summary') as HTMLElement).click();
     expect(foundations.open).toBe(true);
+    (foundations.querySelector('summary') as HTMLElement).click();
+    expect(foundations.open).toBe(false);
     (element.querySelector('[aria-label="Collapse all categories"]') as HTMLButtonElement).click();
     expect(element.querySelectorAll('.sidebar details[open]').length).toBe(0);
     expect(fixture.componentInstance.category()).toBe('buttons');
@@ -1154,10 +1296,13 @@ describe('App', () => {
     expect((sections[1].querySelector('.nav-group') as HTMLDetailsElement).open).toBe(true);
   });
 
-  it('groups all three button pages under an expanded Buttons category', async () => {
+  it('groups all three button pages under a collapsed Buttons category', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const group = fixture.nativeElement.querySelector('nav[aria-label="Components"] details') as HTMLDetailsElement;
+    expect(group.open).toBe(false);
+    (fixture.nativeElement.querySelector('.components-chapter summary') as HTMLElement).click();
+    (group.querySelector('summary') as HTMLElement).click();
     expect(group.open).toBe(true);
     expect(group.querySelector('summary')?.textContent).toContain('Buttons');
     expect([...group.querySelectorAll('.nav-children button')].map(button => button.querySelector('span')?.textContent)).toEqual(['Text Buttons', 'Icon Buttons', 'Social Media']);
@@ -1165,6 +1310,78 @@ describe('App', () => {
     await fixture.whenStable();
     expect(fixture.componentInstance.category()).toBe('icon-buttons');
     expect(group.querySelector('[aria-current="page"]')?.textContent).toContain('Icon Buttons');
+  });
+
+  it('shows active-project templates as Figma links in the sidebar', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    const template = { name: 'Login page', figmaUrl: 'https://www.figma.com/design/example/login' };
+    app.projects.update(projects => projects.map(project => project.id === app.activeProjectId() ? { ...project, templates: [template] } : project));
+    await fixture.whenStable();
+    const section = fixture.nativeElement.querySelector('.template-section') as HTMLDetailsElement;
+    expect(section.open).toBe(false);
+    expect(section.querySelector('.nav-count')?.textContent).toBe('3');
+    (section.querySelector('summary') as HTMLElement).click();
+    const link = section.querySelector('a') as HTMLAnchorElement;
+    expect(link.textContent).toContain('Login page');
+    expect(link.href).toBe(template.figmaUrl);
+    expect(link.target).toBe('_blank');
+    expect(link.rel).toContain('noopener');
+  });
+
+  it('previews interactive IAM sign-in and access overview templates', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    const element = fixture.nativeElement as HTMLElement;
+    app.openDemoTemplate('iam-login');
+    await fixture.whenStable();
+    expect(element.querySelector('.template-title-pill strong')?.textContent).toContain('Customer sign in');
+    expect(element.querySelector('.preview-close')?.getAttribute('aria-label')).toBe('Close template preview');
+    expect(element.querySelectorAll('.preview-direction')).toHaveLength(2);
+    (element.querySelector('.preview-direction.next') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(element.querySelector('.template-title-pill strong')?.textContent).toContain('Access overview');
+    (element.querySelector('.preview-direction.previous') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(element.querySelector('.template-title-pill strong')?.textContent).toContain('Customer sign in');
+    expect(element.querySelector('.login-screen h1')?.textContent).toContain('Secure access.');
+    (element.querySelector('[aria-label="Tablet preview"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(element.querySelector('.preview-canvas')?.getAttribute('data-device')).toBe('tablet');
+    (element.querySelector('[aria-label="Mobile preview"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(element.querySelector('.preview-canvas')?.getAttribute('data-device')).toBe('mobile');
+    (element.querySelector('[aria-label="Desktop preview"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(element.querySelector('.preview-canvas')?.getAttribute('data-device')).toBe('desktop');
+    const email = element.querySelector('input[type="email"]') as HTMLInputElement;
+    const password = element.querySelector('input[autocomplete="current-password"]') as HTMLInputElement;
+    email.value = 'demo@indice.io';
+    email.dispatchEvent(new Event('input'));
+    password.value = 'demo-password';
+    password.dispatchEvent(new Event('input'));
+    (element.querySelector('.login-submit') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(element.querySelector('.login-feedback')?.textContent).toContain('No account was contacted');
+
+    app.openDemoTemplate('iam-dashboard');
+    await fixture.whenStable();
+    expect(element.querySelector('.dashboard-heading h1')?.textContent).toBe('Access overview');
+    const sevenDays = [...element.querySelectorAll<HTMLButtonElement>('.range-control button')].find(button => button.textContent?.trim() === '7D')!;
+    sevenDays.click();
+    await fixture.whenStable();
+    expect(element.querySelector('.metric-value')?.textContent).toBe('2,463');
+    const search = element.querySelector('.activity-search input') as HTMLInputElement;
+    search.value = 'sam.taylor';
+    search.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    expect(element.querySelectorAll('.activity-table-wrap tbody tr')).toHaveLength(1);
+    expect(element.querySelector('.activity-table-wrap tbody')?.textContent).toContain('sam.taylor@indice.io');
+    (element.querySelector('.preview-close') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(app.view()).toBe('library');
   });
 
   it('opens the Buttons chapter with all 28 states and seven disabled buttons', async () => {

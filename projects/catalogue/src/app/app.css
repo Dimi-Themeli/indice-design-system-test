@@ -37,13 +37,9 @@ nav button.active { color: var(--ink); background: var(--surface-selected); font
 .system-name { display: flex; align-items: baseline; gap: 8px; font-size: 14px; font-weight: 700; white-space: nowrap; }
 .system-version { color: var(--muted); font-size: 12px; font-weight: 400; }
 .theme-context { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; color: var(--muted); font-size: 13px; }
-.source-link { display: flex; align-items: center; gap: 8px; font-size: 14px; text-decoration: none; color: var(--ink); }
-.source-link:hover { text-decoration: underline; }
-.source-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
 main { max-width: 1530px; padding: 42px 44px 0; margin: 0 auto; }
 .cloud-error { padding: 12px 14px; border: 1px solid var(--error); border-radius: 4px; color: var(--error); font-size: 13px; overflow-wrap: anywhere; }
 .page-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 32px; }
-.eyebrow { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 10px; }
 h1 { font: 400 40px/1.15 Manrope, sans-serif; margin: 0; }
 .heading-dot { color: var(--accent); }
 .total { font-size: 12px; color: var(--muted); padding-bottom: 5px; white-space: nowrap; }

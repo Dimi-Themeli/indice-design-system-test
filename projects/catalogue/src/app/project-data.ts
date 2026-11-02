@@ -10,6 +10,7 @@ export interface Project {
   modes: string;
   platform: string;
   figmaUrl: string;
+  templates?: ProjectTemplate[];
   logoDark: string | null;
   logoLight: string | null;
   thumbnail?: string | null;
@@ -21,6 +22,11 @@ export interface Project {
   createdAt: string;
   status: 'Base' | 'Sample' | 'Draft';
   source?: 'shared';
+}
+
+export interface ProjectTemplate {
+  name: string;
+  figmaUrl: string;
 }
 
 export interface ProjectState { projects: Project[]; activeId: string | null; warning: string; storedIds: string[]; requestedActiveId: string | null; removedDemoIds: string[]; }
@@ -240,11 +246,22 @@ export function validFigmaUrl(value: string): boolean {
   } catch { return false; }
 }
 
+export function validProjectTemplates(value: unknown): value is ProjectTemplate[] {
+  return Array.isArray(value) && value.every(template => isObject(template)
+    && typeof template['name'] === 'string'
+    && template['name'].trim().length > 0
+    && template['name'].trim().length <= 80
+    && typeof template['figmaUrl'] === 'string'
+    && !!template['figmaUrl'].trim()
+    && validFigmaUrl(template['figmaUrl']));
+}
+
 function isProject(value: unknown): value is Project {
   if (!isObject(value)) return false;
   return ['id', 'name', 'customer', 'description', 'modes', 'platform', 'figmaUrl', 'tokenFileName', 'createdAt'].every(key => typeof value[key] === 'string')
     && !!value['id'] && typeof value['name'] === 'string' && !!value['name'].trim()
     && ['Base', 'Sample', 'Draft'].includes(String(value['status']))
+    && (value['templates'] === undefined || validProjectTemplates(value['templates']))
     && PROJECT_MODES.some(mode => mode === value['modes']) && PROJECT_PLATFORMS.some(platform => platform === value['platform'])
     && validFigmaUrl(String(value['figmaUrl']))
     && (value['logoDark'] === undefined || value['logoDark'] === null || isUploadedImage(value['logoDark']))

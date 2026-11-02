@@ -1,0 +1,105 @@
+<div class="template-preview-page" role="dialog" aria-modal="true" [attr.aria-label]="(templateId() === 'iam-login' ? 'Customer sign in' : 'Access overview') + ' template preview'" (keydown.escape)="back.emit()">
+  <header class="preview-toolbar">
+    <div class="template-title-pill"><span class="template-pill-dot"></span><span>{{ projectName() }}</span><span aria-hidden="true">/</span><strong>{{ templateId() === 'iam-login' ? 'Customer sign in' : 'Access overview' }}</strong><span class="template-pill-kind">TEMPLATE</span></div>
+    <button type="button" class="preview-close" aria-label="Close template preview" title="Close preview" (click)="back.emit()"><app-template-icon name="close" /></button>
+  </header>
+
+  <div class="preview-stage">
+  <div class="preview-stage-window">
+  <div class="preview-canvas" [attr.data-device]="device()">
+  @if (templateId() === 'iam-login') {
+    <section class="login-screen" aria-label="IAM customer sign-in template">
+      <div class="login-story">
+        <div class="iam-wordmark"><span class="wordmark-mark">i</span><span>INDICE <small>IDENTITY</small></span></div>
+        <div class="story-copy">
+          <p class="story-eyebrow">IDENTITY AND ACCESS MANAGEMENT</p>
+          <h1>Secure access.<br />Clear decisions.</h1>
+          <p>One calm place to manage identity, permissions and the moments that matter.</p>
+        </div>
+        <div class="security-panel">
+          <div class="security-panel-icon"><app-template-icon name="security" /></div>
+          <div><strong>Protection, built in</strong><span>Every sign-in is checked against your access policy.</span></div>
+          <span class="security-state"><app-template-icon name="check" />Active</span>
+        </div>
+        <div class="story-footer"><span>INDICE IAM</span><span>Secure by design</span></div>
+      </div>
+
+      <div class="login-form-area">
+        <section class="login-card" aria-labelledby="login-title">
+          <div class="login-card-heading"><span class="welcome-label">YOUR WORKSPACE</span><h2 id="login-title">Welcome back</h2><p>Sign in to continue to your account.</p></div>
+          <form novalidate (submit)="submitLogin($event)">
+            <label>Email address<input type="email" autocomplete="username" placeholder="name@company.com" [value]="email()" (input)="email.set($any($event.target).value); loginMessage.set('')" /></label>
+            <label>Password
+              <span class="password-field"><input [type]="showPassword() ? 'text' : 'password'" autocomplete="current-password" placeholder="Enter your password" [value]="password()" (input)="password.set($any($event.target).value); loginMessage.set('')" /><button type="button" class="password-toggle" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" (click)="showPassword.set(!showPassword())"><app-template-icon [name]="showPassword() ? 'eye-off' : 'eye'" /></button></span>
+            </label>
+            <div class="login-options"><label class="remember-option"><input type="checkbox" [checked]="keepSignedIn()" (change)="keepSignedIn.set($any($event.target).checked)" /><span>Keep me signed in</span></label><button type="button" class="text-action" (click)="requestPasswordReset()">Forgot password?</button></div>
+            <button type="submit" class="login-submit">Sign in <app-template-icon name="arrow-right" /></button>
+            @if (loginMessage()) { <p class="login-feedback" [class.success]="loginSucceeded()" role="status">{{ loginMessage() }}</p> }
+          </form>
+          <div class="login-divider"><span>OR</span></div>
+          <button type="button" class="sso-button" (click)="requestPasswordReset()"><span class="sso-symbol">S</span>Continue with single sign-on</button>
+          <p class="login-assurance"><app-template-icon name="security" />Protected by your organization’s identity policies</p>
+        </section>
+        <footer class="login-legal"><span>© 2026 INDICE</span><button type="button" (click)="requestPasswordReset()"><app-template-icon name="help" />Need help?</button></footer>
+      </div>
+    </section>
+  } @else {
+    <section class="dashboard-screen" aria-label="IAM access overview template">
+      <aside class="demo-app-nav">
+        <div class="demo-app-brand"><span class="wordmark-mark">i</span><div><strong>INDICE</strong><span>Identity console</span></div></div>
+        <span class="demo-nav-label">WORKSPACE</span>
+        <nav aria-label="Demo dashboard navigation">
+          <button type="button" class="demo-nav-item selected" aria-current="page"><app-template-icon name="dashboard" />Overview</button>
+          <button type="button" class="demo-nav-item" (click)="showDashboardSection('People')"><app-template-icon name="users" />People</button>
+          <button type="button" class="demo-nav-item" (click)="showDashboardSection('Access policies')"><app-template-icon name="security" />Access policies</button>
+          <button type="button" class="demo-nav-item" (click)="showDashboardSection('Audit log')"><app-template-icon name="clock" />Audit log</button>
+        </nav>
+        <div class="demo-nav-bottom"><span class="nav-status-dot"></span><span>All systems operational</span><button type="button" aria-label="Help" (click)="showDashboardSection('Help')"><app-template-icon name="help" /></button></div>
+      </aside>
+
+      <div class="dashboard-main">
+        <header class="dashboard-topbar"><div class="breadcrumb"><span>Workspace</span><span>/</span><strong>Overview</strong></div><div class="dashboard-top-actions"><button type="button" class="notification-button" aria-label="Notifications" (click)="showDashboardSection('Notifications')"><app-template-icon name="bell" /><span></span></button><div class="profile-chip"><span class="profile-avatar">AM</span><span><strong>Andrea Morgan</strong><small>Administrator</small></span><app-template-icon name="chevron" /></div></div></header>
+
+        <div class="dashboard-content">
+          <div class="dashboard-heading"><div><p class="dashboard-date">MONDAY, OCTOBER 26, 2026</p><h1>Access overview</h1><p class="dashboard-subtitle">A clear view of identity activity across your organization.</p></div><button type="button" class="export-button" (click)="showDashboardSection('Export')"><app-template-icon name="arrow-up-right" />Export report</button></div>
+          @if (dashboardMessage()) { <p class="dashboard-message" role="status">{{ dashboardMessage() }}</p> }
+
+          <div class="metric-grid">
+            @for (metric of metrics(); track metric.label) {
+              <article class="metric-card"><div class="metric-card-top"><span>{{ metric.label }}</span><span class="metric-icon"><app-template-icon [name]="$index === 0 ? 'users' : $index === 1 ? 'dashboard' : $index === 2 ? 'clock' : 'security'" /></span></div><div class="metric-value">{{ metric.value }}</div><div class="metric-foot" [class.positive]="metric.tone === 'positive'" [class.neutral]="metric.tone === 'neutral'"><span>{{ metric.change }}</span><span>{{ metric.tone === 'neutral' ? 'in this period' : 'vs. previous period' }}</span></div></article>
+            }
+          </div>
+
+          <div class="dashboard-panels">
+            <section class="activity-chart panel" aria-labelledby="activity-chart-title">
+              <header class="panel-heading"><div><h2 id="activity-chart-title">Authentication activity</h2><p>Successful sign-ins over time</p></div><div class="range-control" role="group" aria-label="Chart date range">@for (period of periods; track period) { <button type="button" [class.selected]="range() === period" [attr.aria-pressed]="range() === period" (click)="range.set(period)">{{ period }}</button> }</div></header>
+              <div class="chart-summary"><strong>52,804</strong><span>successful events</span><span class="chart-trend"><app-template-icon name="arrow-up-right" />7.4%</span></div>
+              <div class="chart-plot" role="img" [attr.aria-label]="'Sign-in activity chart, ' + range() + ' range'">
+                <div class="chart-guides"><span>8k</span><span>6k</span><span>4k</span><span>2k</span></div>
+                <div class="chart-bars">@for (bar of chartBars(); track $index) { <div class="chart-bar-column"><div class="chart-bar" [style.height.%]="bar.value" [class.bar-emphasis]="$index === chartBars().length - 1"></div><span>{{ bar.label }}</span></div> }</div>
+              </div>
+            </section>
+
+            <section class="risk-card panel" aria-labelledby="risk-title"><header class="panel-heading"><div><h2 id="risk-title">Risk posture</h2><p>Current access health</p></div><button type="button" class="icon-quiet" aria-label="Risk posture options" (click)="showDashboardSection('Risk posture options')">···</button></header><div class="risk-score"><div><span>LOW RISK</span><strong>92<span>/100</span></strong></div><div class="risk-ring" aria-hidden="true"><div><strong>92</strong><span>HEALTH</span></div></div></div><div class="risk-divider"></div><div class="risk-detail"><span><i class="risk-dot green"></i>Multi-factor coverage</span><strong>96%</strong></div><div class="risk-detail"><span><i class="risk-dot blue"></i>Policy compliance</span><strong>89%</strong></div><button type="button" class="risk-link" (click)="showDashboardSection('Security posture')">View security posture <app-template-icon name="arrow-right" /></button></section>
+          </div>
+
+          <section class="recent-activity panel" aria-labelledby="recent-activity-title"><header class="panel-heading"><div><h2 id="recent-activity-title">Recent activity</h2><p>Latest identity and access events</p></div><label class="activity-search"><app-template-icon name="search" /><input type="search" placeholder="Search activity" aria-label="Search activity" [value]="activityQuery()" (input)="activityQuery.set($any($event.target).value)" /></label></header><div class="activity-table-wrap"><table><thead><tr><th>IDENTITY</th><th>EVENT</th><th>TIME</th><th>RESULT</th></tr></thead><tbody>
+            @for (item of filteredActivity(); track item.identity) { <tr><td><span class="table-avatar">{{ item.identity.slice(0, 1).toUpperCase() }}</span>{{ item.identity }}</td><td>{{ item.detail }}</td><td>{{ item.time }}</td><td><span class="event-result" [class]="'event-result ' + item.result.toLowerCase()"><i></i>{{ item.result }}</span></td></tr> }
+            @empty { <tr><td colspan="4" class="no-activity">No activity matches that search.</td></tr> }
+          </tbody></table></div><footer class="table-footer"><span>Showing {{ filteredActivity().length }} of 4 events</span><button type="button" class="text-action" (click)="showDashboardSection('Full audit log')">View audit log <app-template-icon name="arrow-right" /></button></footer></section>
+          <footer class="dashboard-footnote"><span>Sample content for presentation only</span><span>Data shown is illustrative and does not represent live accounts.</span></footer>
+        </div>
+      </div>
+    </section>
+  }
+  </div>
+  </div>
+  <button type="button" class="preview-direction previous" aria-label="Previous template" title="Previous template" (click)="previous.emit()"><app-template-icon name="previous" /></button>
+  <button type="button" class="preview-direction next" aria-label="Next template" title="Next template" (click)="next.emit()"><app-template-icon name="next" /></button>
+  </div>
+  <div class="preview-device-controls" role="group" aria-label="Preview device size">
+    @for (option of devices; track option.id) {
+      <button type="button" [class.selected]="device() === option.id" [attr.aria-pressed]="device() === option.id" [attr.aria-label]="option.label + ' preview'" [title]="option.label" (click)="device.set(option.id)"><app-template-icon [name]="option.id" /><span>{{ option.label }}</span></button>
+    }
+  </div>
+</div>

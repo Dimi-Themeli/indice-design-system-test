@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { Location } from '@angular/common';
 import { TOKENS, DesignToken } from 'indice-tokens';
 import { Icon } from './icon';
@@ -6,11 +6,16 @@ import { ButtonCatalogue } from './buttons';
 import { IconButtonCatalogue } from './icon-buttons';
 import { SocialButtonCatalogue } from './social-buttons';
 import { FieldCatalogue } from './fields';
+import { ICON_LIBRARIES } from './icon-library-data';
+import { TemplatePreview } from './template-preview';
+import type { IamTemplateId } from './template-preview';
 import { Projects } from './projects';
 import { IconLibraries } from './icon-libraries';
 import { BASE_PROJECT_ID, DEMO_DATA_URL, Project, loadProjectState, mergeDemoProjects, parseDemoData, projectCssVariables, projectTokenList, saveProjectState } from './project-data';
 import { IAM_TOKENS } from './iam-tokens';
 import { SupabaseProjects } from './supabase-projects';
+import { ProjectTokens } from './project-tokens';
+import { RevisionStatus, TokenRevisions } from './token-revisions';
 
 // The workspace chrome always uses the IAM palette; project palettes only theme the component previews.
 const APP_THEME = projectCssVariables(IAM_TOKENS);
@@ -21,13 +26,17 @@ const LIBRARY_PATHS: Record<string, string> = {
 };
 
 @Component({
-  imports: [Icon, ButtonCatalogue, IconButtonCatalogue, SocialButtonCatalogue, FieldCatalogue, Projects, IconLibraries],
+  imports: [Icon, ButtonCatalogue, IconButtonCatalogue, SocialButtonCatalogue, FieldCatalogue, Projects, IconLibraries, ProjectTokens, TemplatePreview],
   selector: 'app-root',
-  styleUrls: ['./app.css', './sidebar.css', './theme-chooser.css', './project-wizard.css', './welcome.css'],
+  styleUrls: ['./app.css', './sidebar.css', './theme-chooser.css', './project-wizard.css', './welcome.css', './token-status.css'],
   templateUrl: './app.html',
   host: { '(document:keydown.escape)': 'menuOpen.set(false)', '[attr.data-role]': 'role()' },
 })
 export class App {
+  readonly demoTemplates = [
+    { id: 'iam-login' as const, name: 'Customer sign in' },
+    { id: 'iam-dashboard' as const, name: 'Access overview' },
+  ];
   readonly categories = [
     { id: 'colours', title: 'Colours', number: '01' },
     { id: 'fonts', title: 'Typography', number: '02' },
@@ -36,6 +45,9 @@ export class App {
     { id: 'containers', title: 'Containers', number: '05' },
   ];
   readonly category = signal('colours');
+  readonly foundationCount = computed(() => this.categories.reduce((total, category) => total + this.count(category.id), 0));
+  readonly componentCount = 26;
+  readonly iconLibraryCount = ICON_LIBRARIES.length;
   readonly query = signal('');
   readonly copyMode = signal<'variable' | 'value'>('variable');
   readonly role = signal<'designer' | 'developer'>('developer');
@@ -53,11 +65,23 @@ export class App {
   readonly welcomeStep = signal<1 | 2>(1);
   readonly previewProjectId = signal<string | null>(this.savedProjects.activeId);
   readonly selectedProjectPreview = computed(() => this.projects().find(project => project.id === this.previewProjectId()) ?? null);
-  readonly view = signal<'library' | 'create' | 'edit' | 'manage' | 'icon-libraries'>('library');
+  readonly view = signal<'library' | 'create' | 'edit' | 'manage' | 'icon-libraries' | 'tokens' | 'template-preview'>('library');
+  readonly activeTemplateId = signal<IamTemplateId>('iam-login');
+  readonly sidebarTemplates = computed(() => {
+    const project = this.currentProject();
+    const demos = project?.id === BASE_PROJECT_ID
+      ? this.demoTemplates.map(template => ({ ...template, kind: 'preview' as const }))
+      : [];
+    const links = (project?.templates ?? []).map((template, index) => ({ ...template, id: `project-template-${index}`, kind: 'link' as const }));
+    return [...demos, ...links];
+  });
   readonly editingProjectId = signal<string | null>(null);
   readonly editingProject = computed(() => this.projects().find(project => project.id === this.editingProjectId()) ?? null);
   readonly projectError = signal(this.savedProjects.warning);
   readonly cloudError = signal('');
+  readonly currentTokenStatus = signal<RevisionStatus | null>(null);
+  readonly tokenStatusError = signal('');
+  private readonly revisions = inject(TokenRevisions);
   readonly projectSaving = signal(false);
   private readonly sharedProjects = inject(SupabaseProjects);
   private readonly location = inject(Location);
@@ -89,6 +113,20 @@ export class App {
   });
 
   constructor() {
+    effect(onCleanup => {
+      const project = this.currentProject();
+      const view = this.view();
+      let active = true;
+      onCleanup(() => { active = false; });
+      this.currentTokenStatus.set(null);
+      this.tokenStatusError.set('');
+      if (project?.source === 'shared' && view !== 'tokens') {
+        void this.revisions.loadCurrentStatus(project.id).then(
+          status => { if (active) this.currentTokenStatus.set(status); },
+          error => { if (active) this.tokenStatusError.set(error instanceof Error ? error.message : 'Current token status could not be loaded.'); },
+        );
+      }
+    });
     for (const [name, value] of Object.entries(APP_THEME)) document.documentElement.style.setProperty(name, value);
     this.applyPath();
     const navigation = this.location.subscribe(() => this.applyPath());
@@ -98,6 +136,10 @@ export class App {
     });
     void this.loadDemoProjects();
     void this.loadSharedProjects();
+  }
+
+  tokenStatusChanged(event: { projectId: string; status: RevisionStatus | null }) {
+    if (event.projectId === this.activeProjectId()) this.currentTokenStatus.set(event.status);
   }
 
   private navigate(path: string) {
@@ -114,8 +156,11 @@ export class App {
       this.category.set(category ?? 'colours');
       this.view.set('library');
       if (!category) this.location.replaceState('/colours');
-    } else if (path === '/manage-projects' || path === '/add-project' || path === '/icon-libraries') {
-      this.view.set(path === '/manage-projects' ? 'manage' : path === '/add-project' ? 'create' : 'icon-libraries');
+    } else if (/^\/templates\/(iam-login|iam-dashboard)$/.test(path)) {
+      this.activeTemplateId.set(path.endsWith('iam-dashboard') ? 'iam-dashboard' : 'iam-login');
+      this.view.set('template-preview');
+    } else if (path === '/manage-projects' || path === '/add-project' || path === '/icon-libraries' || path === '/tokens') {
+      this.view.set(path === '/manage-projects' ? 'manage' : path === '/add-project' ? 'create' : path === '/tokens' ? 'tokens' : 'icon-libraries');
     } else {
       const edit = /^\/projects\/([^/]+)\/edit$/.exec(path);
       if (edit) {
@@ -218,6 +263,27 @@ export class App {
 
   count(category: string) { return this.tokens().filter(token => token.category === category).length; }
 
+  openDemoTemplate(id: IamTemplateId) {
+    this.activeTemplateId.set(id);
+    this.view.set('template-preview');
+    this.navigate(`/templates/${id}`);
+    this.menuOpen.set(false);
+    window.scrollTo({ top: 0 });
+    document.getElementById('main')?.focus({ preventScroll: true });
+  }
+
+  previousDemoTemplate() {
+    this.openDemoTemplate(this.activeTemplateId() === 'iam-login' ? 'iam-dashboard' : 'iam-login');
+  }
+
+  nextDemoTemplate() {
+    this.openDemoTemplate(this.activeTemplateId() === 'iam-login' ? 'iam-dashboard' : 'iam-login');
+  }
+
+  closeTemplatePreview() {
+    this.select(this.category());
+  }
+
   collapseAll(sidebar: HTMLElement) {
     sidebar.querySelectorAll<HTMLDetailsElement>('details').forEach(section => section.open = false);
   }
@@ -228,10 +294,10 @@ export class App {
     if (role === 'developer' && (this.view() === 'create' || this.view() === 'edit')) this.showProjects('manage');
   }
 
-  showProjects(view: 'library' | 'create' | 'manage' | 'icon-libraries') {
+  showProjects(view: 'library' | 'create' | 'manage' | 'icon-libraries' | 'tokens') {
     this.editingProjectId.set(null);
     this.view.set(view);
-    this.navigate(view === 'library' ? LIBRARY_PATHS[this.category()] : view === 'create' ? '/add-project' : view === 'manage' ? '/manage-projects' : '/icon-libraries');
+    this.navigate(view === 'library' ? LIBRARY_PATHS[this.category()] : view === 'create' ? '/add-project' : view === 'manage' ? '/manage-projects' : view === 'tokens' ? '/tokens' : '/icon-libraries');
     this.menuOpen.set(false);
     window.scrollTo({ top: 0 });
     document.getElementById('main')?.focus({ preventScroll: true });
@@ -302,6 +368,31 @@ export class App {
       this.projectError.set(error instanceof Error ? error.message : 'The project could not be published.');
     } finally {
       this.projectSaving.set(false);
+    }
+  }
+
+  async initializeTokenHistory(project: Project) {
+    if (this.role() !== 'designer' || this.projectSaving() || project.source === 'shared') return;
+    this.projectSaving.set(true);
+    this.projectError.set('');
+    try {
+      const saved = await this.sharedProjects.publish(project);
+      if (saved.source !== 'shared' || saved.id !== project.id) throw new Error('Public project publication was not confirmed.');
+      this.projects.update(projects => projects.map(existing => existing.id === saved.id ? saved : existing));
+      this.commitProjects(this.projects(), this.activeProjectId());
+    } catch (error) {
+      this.projectError.set(error instanceof Error ? error.message : 'Token history could not be initialized.');
+    } finally { this.projectSaving.set(false); }
+  }
+
+  tokensChanged(project: Project) {
+    this.projects.update(projects => projects.map(existing => existing.id === project.id ? project : existing));
+  }
+
+  openProjectTokens(id: string) {
+    if (this.projects().some(project => project.id === id) && this.commitProjects(this.projects(), id)) {
+      this.previewProjectId.set(id);
+      this.showProjects('tokens');
     }
   }
 

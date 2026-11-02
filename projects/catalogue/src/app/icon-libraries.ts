@@ -8,7 +8,7 @@ import type { Project } from './project-data';
   imports: [Icon],
   template: `
     <button type="button" class="back-link" (click)="opened() ? opened.set(null) : back.emit(); query.set('')"><app-icon name="back" />{{ opened() ? 'Back to icon libraries' : 'Back to library' }}</button>
-    <header class="projects-heading"><div><div class="projects-eyebrow">INDICE / ICONS</div><h1>{{ selectedLibrary()?.name ?? 'Icons libraries' }}</h1></div></header>
+    <header class="projects-heading"><div><h1>{{ selectedLibrary()?.name ?? 'Icons libraries' }}</h1></div></header>
     @if (selectedLibrary(); as library) {
       <p>Starter collection bundled locally.</p>
       <p><a [href]="library.url" target="_blank" rel="noopener noreferrer">Browse the full {{ library.name }} catalogue</a> · {{ library.license }} license</p>
